@@ -1,0 +1,27 @@
+## changelog.txt
+CHANGELOGS
+
+VERSION 0.1a
+- Wrote core logic for the app
+- Wrote logic for config.json
+- Wrote pyqtSignals
+- Added chunked encryption / decryption
+- Added drag n' drop
+- Added status label
+- Added settings tab
+- Added about tab
+- Added error handling
+- Added custom dialog popups
+
+VERSION 0.2a
+- Added sfx
+- Added Save Settings button
+- Added Mute Sound Effects toggle
+- Fixed past error handling
+- Fixed threading issues
+- Bumped up KDF iterations to 1,000,000 (one-million)
+- Created this document
+
+That's all for now :)
+
+## end
