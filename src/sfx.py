@@ -1,5 +1,5 @@
 ## sfx.py
-## last updated: 21/8/2025 <d/m/y>
+## last updated: 26/8/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 
@@ -15,8 +15,8 @@ class SoundManager:
             self.mixer_initialized = True
             self.sound_dir = self.get_sound_dir()
         except pygame.error as e:
-            print(f"[DEBUG] Failed to initialize pygame mixer: {e}")
-            print("[DEBUG] Sound effects will be disabled.")
+            print(f"[DEV PRINT] Failed to initialize pygame mixer: {e}")
+            print("[DEV PRINT] Sound effects will be disabled.")
 
     def get_sound_dir(self):
         if getattr(sys, "frozen", False):
@@ -35,7 +35,7 @@ class SoundManager:
             self.sounds[sound_name] = sound
             return True
         except pygame.error as e:
-            print(f"[DEBUG] Failed to load sound '{sound_name}': {e}")
+            print(f"[DEV PRINT] Failed to load sound '{sound_name}': {e}")
             return False
             
     def play_sound(self, sound_name):
@@ -44,16 +44,16 @@ class SoundManager:
             
         if sound_name not in self.sounds:
             if not self.load_sound(sound_name):
-                print(f"[DEBUG] Failed to load and play sound: {sound_name}")
+                print(f"[DEV PRINT] Failed to load and play sound: {sound_name}")
                 return        
         try:
             self.sounds[sound_name].play()
         except pygame.error as e:
-            print(f"[DEBUG] Failed to play sound '{sound_name}': {e}")
+            print(f"[DEV PRINT] Failed to play sound '{sound_name}': {e}")
 
     def list_available_sounds(self):
         if not self.sound_dir or not os.path.exists(self.sound_dir):
-            print("[DEBUG] Sound directory not found")
+            print("[DEV PRINT] Sound directory not found")
             return []            
         sound_files = []
         for file in os.listdir(self.sound_dir):

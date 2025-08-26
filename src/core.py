@@ -1,5 +1,5 @@
 ## core.py
-## last updated: 21/8/2025 <d/m/y>
+## last updated: 26/8/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 
@@ -18,7 +18,7 @@ class CryptoWorker(QObject):
     progress_updated = pyqtSignal(float)
     finished = pyqtSignal(bool, str)
 
-    def __init__(self, operation, in_path, out_path, password, custom_ext=None, new_name_type=None, output_dir=None, parent=None):
+    def __init__(self, operation, in_path, out_path, password, custom_ext=None, new_name_type=None, output_dir=None, chunk_size=CHUNK_SIZE, kdf_iterations=KDF_ITERATIONS, parent=None):
         super().__init__(parent)
         self.operation = operation
         self.in_path = in_path
@@ -27,6 +27,8 @@ class CryptoWorker(QObject):
         self.custom_ext = custom_ext
         self.new_name_type = new_name_type
         self.output_dir = output_dir
+        self.chunk_size = chunk_size
+        self.kdf_iterations = kdf_iterations
         self.is_canceled = False
 
     @Slot()
@@ -48,7 +50,7 @@ class CryptoWorker(QObject):
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
-            iterations=KDF_ITERATIONS,
+            iterations=self.kdf_iterations,
             backend=default_backend()
         )
         key = kdf.derive(self.password.encode())
@@ -62,7 +64,7 @@ class CryptoWorker(QObject):
             hasher = hashlib.sha256()
             with open(self.in_path, 'rb') as f:
                 while True:
-                    chunk = f.read(CHUNK_SIZE)
+                    chunk = f.read(self.chunk_size)
                     if not chunk:
                         break
                     hasher.update(chunk)
@@ -84,7 +86,7 @@ class CryptoWorker(QObject):
             outfile.write(struct.pack('!B', FORMAT_VERSION))
             outfile.write(struct.pack('!B', ALGORITHM_ID))
             outfile.write(struct.pack('!B', KDF_ID))
-            outfile.write(struct.pack('!I', KDF_ITERATIONS))
+            outfile.write(struct.pack('!I', self.kdf_iterations))
             outfile.write(salt)
             outfile.write(ext_nonce)
             outfile.write(struct.pack('!I', len(encrypted_ext)))
@@ -96,7 +98,7 @@ class CryptoWorker(QObject):
                     except:
                         pass
                     raise Exception("Operation cancelled by user.")                  
-                chunk = infile.read(CHUNK_SIZE)
+                chunk = infile.read(self.chunk_size)
                 if not chunk:
                     break
                 chunk_nonce = os.urandom(NONCE_SIZE)
@@ -161,7 +163,7 @@ class CryptoWorker(QObject):
                     if not chunk_nonce or len(chunk_nonce) < NONCE_SIZE:
                         break
                     encrypted_chunk = b""
-                    chunk_size_guess = CHUNK_SIZE + TAG_SIZE
+                    chunk_size_guess = self.chunk_size + TAG_SIZE
                     temp_chunk = infile.read(chunk_size_guess)                  
                     if not temp_chunk:
                         break
@@ -201,7 +203,7 @@ class BatchProcessorThread(QThread):
     progress_updated = pyqtSignal(float)
     finished = pyqtSignal(list)
     
-    def __init__(self, operation, file_paths, password, custom_ext=None, output_dir=None, new_name_type=None, parent=None):
+    def __init__(self, operation, file_paths, password, custom_ext=None, output_dir=None, new_name_type=None, chunk_size=CHUNK_SIZE, kdf_iterations=KDF_ITERATIONS, parent=None):
         super().__init__(parent)
         self.operation = operation
         self.file_paths = file_paths
@@ -209,6 +211,8 @@ class BatchProcessorThread(QThread):
         self.custom_ext = custom_ext
         self.output_dir = output_dir
         self.new_name_type = new_name_type
+        self.chunk_size = chunk_size
+        self.kdf_iterations = kdf_iterations
         self.is_canceled = False
         self.errors = []
         self.completed_count = 0
@@ -225,13 +229,15 @@ class BatchProcessorThread(QThread):
                 if self.output_dir:
                     out_path = os.path.join(self.output_dir, os.path.basename(file_path))
                 worker = CryptoWorker(
-                    self.operation,
-                    file_path,
-                    out_path,
-                    self.password,
-                    self.custom_ext,
-                    self.new_name_type,
-                    self.output_dir
+                    operation=self.operation,
+                    in_path=file_path,
+                    out_path=out_path,
+                    password=self.password,
+                    custom_ext=self.custom_ext,
+                    new_name_type=self.new_name_type,
+                    output_dir=self.output_dir,
+                    chunk_size=self.chunk_size,
+                    kdf_iterations=self.kdf_iterations
                 )
                 worker.progress_updated.connect(self.progress_updated)
                 success = False

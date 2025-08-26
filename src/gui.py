@@ -1,5 +1,5 @@
 ## gui.py
-## last updated: 22/8/2025 <d/m/y>
+## last updated: 26/8/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
@@ -32,6 +32,8 @@ class PyLI(QWidget):
         self.output_dir = ""
         self.new_name_type = "keep"
         self.mute_sfx = False
+        self.chunk_size_mb = 3
+        self.kdf_iterations = 1000000
         self.batch_processor = None
         self.progress_dialog = None
         self.config_path = self.get_config_path()
@@ -74,6 +76,8 @@ class PyLI(QWidget):
                 self.output_dir = config.get("output_dir", "")
                 self.new_name_type = config.get("new_name_type", "keep")
                 self.mute_sfx = config.get("mute_sfx", False)
+                self.chunk_size_mb = config.get("chunk_size_mb", 3)
+                self.kdf_iterations = config.get("kdf_iterations", 1000000)
         except FileNotFoundError:
             pass
         except Exception as e:
@@ -88,7 +92,9 @@ class PyLI(QWidget):
             "custom_ext": self.custom_ext,
             "output_dir": self.output_dir,
             "new_name_type": self.new_name_type,
-            "mute_sfx": self.mute_sfx
+            "mute_sfx": self.mute_sfx,
+            "chunk_size_mb": self.chunk_size_mb,
+            "kdf_iterations": self.kdf_iterations
         }
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
@@ -129,18 +135,18 @@ class PyLI(QWidget):
         main_layout.addStretch()
         return main_tab
 
-    def create_settings_tab(self):
-        settings_tab = QWidget()
-        settings_layout = QVBoxLayout(settings_tab) 
+    def create_settings_general_tab(self):
+        general_tab = QWidget()
+        layout = QVBoxLayout(general_tab)
         output_group = QGroupBox("Output settings")
         output_layout = QFormLayout()
         self.custom_ext_field = QLineEdit(self.custom_ext)
-        output_layout.addRow("Custom extension:", self.custom_ext_field) 
+        output_layout.addRow("Custom extension:", self.custom_ext_field)
         output_dir_layout = QHBoxLayout()
         self.output_dir_field = QLineEdit(self.output_dir)
-        self.output_dir_field.setReadOnly(True)      
+        self.output_dir_field.setReadOnly(True)
         self.output_dir_browse_button = QPushButton("Browse")
-        self.output_dir_browse_button.clicked.connect(self.select_output_dir)        
+        self.output_dir_browse_button.clicked.connect(self.select_output_dir)
         output_dir_layout.addWidget(self.output_dir_field)
         output_dir_layout.addWidget(self.output_dir_browse_button)
         output_layout.addRow("Output directory:", output_dir_layout)
@@ -149,19 +155,75 @@ class PyLI(QWidget):
         self.new_name_type_combo.setCurrentText(self.new_name_type)
         output_layout.addRow("New name type:", self.new_name_type_combo)
         output_group.setLayout(output_layout)
+        layout.addWidget(output_group)
+        layout.addStretch()
+        return general_tab
+
+    def create_settings_audio_tab(self):
+        audio_tab = QWidget()
+        layout = QVBoxLayout(audio_tab)
         audio_group = QGroupBox("Audio settings")
         audio_layout = QFormLayout()
         self.mute_sfx_checkbox = QCheckBox()
         self.mute_sfx_checkbox.setChecked(self.mute_sfx)
         audio_layout.addRow("Mute sfx:", self.mute_sfx_checkbox)
         audio_group.setLayout(audio_layout)
-        settings_layout.addWidget(output_group)
-        settings_layout.addWidget(audio_group)
+        layout.addWidget(audio_group)
+        layout.addStretch()
+        return audio_tab
+
+    def create_settings_advanced_tab(self):
+        advanced_tab = QWidget()
+        layout = QVBoxLayout(advanced_tab)
+        self.performance_group = QGroupBox("Performance settings")
+        performance_layout = QFormLayout()
+        self.chunk_size_spinbox = QSpinBox()
+        self.chunk_size_spinbox.setRange(1, 128)
+        self.chunk_size_spinbox.setValue(self.chunk_size_mb)
+        self.chunk_size_spinbox.setSuffix(" MB")
+        performance_layout.addRow("Chunk size:", self.chunk_size_spinbox)
+        self.kdf_iterations_spinbox = QSpinBox()
+        self.kdf_iterations_spinbox.setRange(100000, 5000000)
+        self.kdf_iterations_spinbox.setSingleStep(100000)
+        self.kdf_iterations_spinbox.setValue(self.kdf_iterations)
+        self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
+        performance_layout.addRow("KDF iterations:", self.kdf_iterations_spinbox)
+        self.performance_group.setLayout(performance_layout)
+        self.performance_group.setEnabled(False)
+        self.unlock_checkbox = QCheckBox("Unlock advanced settings")
+        self.unlock_checkbox.toggled.connect(self.toggle_performance_settings)
+        layout.addWidget(self.unlock_checkbox)
+        layout.addWidget(self.performance_group)
+        layout.addStretch()
+        return advanced_tab
+
+    def create_settings_tab(self):
+        settings_tab = QWidget()
+        main_settings_layout = QVBoxLayout(settings_tab)
+        sub_tab_widget = QTabWidget()
+        general_tab = self.create_settings_general_tab()
+        audio_tab = self.create_settings_audio_tab()
+        advanced_tab = self.create_settings_advanced_tab()
+        sub_tab_widget.addTab(general_tab, "General")
+        sub_tab_widget.addTab(audio_tab, "Audio")
+        sub_tab_widget.addTab(advanced_tab, "Advanced")
         save_button = QPushButton("Save settings")
         save_button.clicked.connect(self.update_settings)
-        settings_layout.addWidget(save_button)
-        settings_layout.addStretch()
+        main_settings_layout.addWidget(sub_tab_widget)
+        main_settings_layout.addWidget(save_button)
         return settings_tab
+
+    def toggle_performance_settings(self, checked):
+        if checked:
+            self.play_warning_sound()
+            dialog = CustomDialog("Warning", "Changing these settings can impact performance and security.\nIncorrect values may lead to errors or corrupted files.\nProceed with caution.", self)
+            result = dialog.exec()
+            if result == QDialog.Accepted:
+                self.performance_group.setEnabled(True)
+            else:
+                self.unlock_checkbox.setChecked(False)
+        else:
+            self.performance_group.setEnabled(False)
 
     def create_about_tab(self):
         about_tab = QWidget()
@@ -197,7 +259,7 @@ class PyLI(QWidget):
             padding: 15px; 
             border: 1px solid #666; 
             background-color: #2A2A2A;
-            border-radius: 5px;
+            border-radius: 0px;
             line-height: 1.4;
         """)
         scroll_area.setWidget(disclaimer_label)
@@ -224,7 +286,7 @@ class PyLI(QWidget):
             padding: 15px; 
             border: 1px solid #666; 
             background-color: #2A2A2A;
-            border-radius: 5px;
+            border-radius: 0px;
             line-height: 1.4;
             font-family: 'Consolas', 'Monaco', monospace;
         """)
@@ -251,7 +313,7 @@ class PyLI(QWidget):
             padding: 15px; 
             border: 1px solid #666; 
             background-color: #2A2A2A;
-            border-radius: 5px;
+            border-radius: 0px;
             line-height: 1.4;
             font-family: 'Consolas', 'Monaco', monospace;
         """)
@@ -270,10 +332,10 @@ class PyLI(QWidget):
                 return f.read().strip()
         except FileNotFoundError:
             return "Disclaimer file not found. You're on your own, ya know?"
-            print("[DEBUG] 'disclaimer.txt' not found.")
+            print("[DEV PRINT] 'disclaimer.txt' not found.")
         except Exception as e:
             return f"Error loading disclaimer: {e}\n\nDefault message: Make up your own risks."
-            print("[DEBUG] Exception encountered when loading 'disclaimer.txt'")
+            print("[DEV PRINT] Exception encountered when loading 'disclaimer.txt'")
 
     def load_info(self):
         try:
@@ -311,6 +373,8 @@ class PyLI(QWidget):
         self.output_dir = self.output_dir_field.text()
         self.new_name_type = self.new_name_type_combo.currentText()
         self.mute_sfx = self.mute_sfx_checkbox.isChecked()
+        self.chunk_size_mb = self.chunk_size_spinbox.value()
+        self.kdf_iterations = self.kdf_iterations_spinbox.value()
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
             if not os.path.exists(desktop_path):
@@ -342,6 +406,7 @@ class PyLI(QWidget):
                 self.output_dir = selected_dir
                 self.output_dir_field.setText(self.output_dir)
             else:
+                self.sound_manager.play_sound("error.wav")
                 dialog = CustomDialog("Invalid Directory", "Selected directory does not exist or is not accessible.", self)
                 dialog.exec()
             
@@ -364,13 +429,15 @@ class PyLI(QWidget):
         self.progress_dialog.canceled.connect(self.cancel_operation)
         self.progress_dialog.show()
         self.batch_processor = BatchProcessorThread(
-            operation,
-            self.files_to_process,
-            password,
-            self.custom_ext,
-            self.output_dir,
-            self.new_name_type,
-            self
+            operation=operation,
+            file_paths=self.files_to_process,
+            password=password,
+            custom_ext=self.custom_ext,
+            output_dir=self.output_dir,
+            new_name_type=self.new_name_type,
+            chunk_size=self.chunk_size_mb * 1024 * 1024,
+            kdf_iterations=self.kdf_iterations,
+            parent=self
         )
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
         self.batch_processor.progress_updated.connect(self.progress_dialog.file_progress_bar.setValue)
