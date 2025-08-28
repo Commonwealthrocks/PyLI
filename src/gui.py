@@ -1,11 +1,12 @@
 ## gui.py
-## last updated: 26/8/2025 <d/m/y>
+## last updated: 28/8/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
 from outs import ProgressDialog, CustomDialog, ErrorExportDialog
 from sfx import SoundManager
+from sm import is_secure_clear_available
 
 class PyLI(QWidget):
     def __init__(self):
@@ -34,6 +35,8 @@ class PyLI(QWidget):
         self.mute_sfx = False
         self.chunk_size_mb = 3
         self.kdf_iterations = 1000000
+        self.secure_clear = False
+        self.add_recovery_data = False
         self.batch_processor = None
         self.progress_dialog = None
         self.config_path = self.get_config_path()
@@ -78,10 +81,13 @@ class PyLI(QWidget):
                 self.mute_sfx = config.get("mute_sfx", False)
                 self.chunk_size_mb = config.get("chunk_size_mb", 3)
                 self.kdf_iterations = config.get("kdf_iterations", 1000000)
-        except FileNotFoundError:
+                self.secure_clear = config.get("secure_clear", False)
+                self.add_recovery_data = config.get("add_recovery_data", False)
+        except (FileNotFoundError, json.JSONDecodeError):
             pass
         except Exception as e:
-            dialog = CustomDialog("Error", f"Failed to load settings: {e}", self)
+            self.sound_manager.play_sound("error.wav")
+            dialog = CustomDialog("Oi blyat...", f"Failed to load settings: {e}", self)
             dialog.exec()
 
     def save_settings(self):
@@ -94,7 +100,9 @@ class PyLI(QWidget):
             "new_name_type": self.new_name_type,
             "mute_sfx": self.mute_sfx,
             "chunk_size_mb": self.chunk_size_mb,
-            "kdf_iterations": self.kdf_iterations
+            "kdf_iterations": self.kdf_iterations,
+            "secure_clear": self.secure_clear,
+            "add_recovery_data": self.add_recovery_data
         }
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
@@ -172,10 +180,46 @@ class PyLI(QWidget):
         layout.addStretch()
         return audio_tab
 
+    def handle_warning_checkbox(self, state, checkbox, title, message):
+        if state:
+            self.play_warning_sound()
+            dialog = CustomDialog(title, message, self)
+            if dialog.exec() != QDialog.Accepted:
+                checkbox.setChecked(False)
+
     def create_settings_advanced_tab(self):
         advanced_tab = QWidget()
-        layout = QVBoxLayout(advanced_tab)
-        self.performance_group = QGroupBox("Performance settings")
+        main_layout = QVBoxLayout(advanced_tab)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { border: none; }")
+
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
+
+        security_group = QGroupBox("Security")
+        security_layout = QFormLayout()
+        self.secure_clear_checkbox = QCheckBox()
+        self.secure_clear_checkbox.setChecked(self.secure_clear)
+        if not is_secure_clear_available():
+            self.secure_clear_checkbox.setEnabled(False)
+            self.secure_clear_checkbox.setToolTip("Disabled: eh, C library not found... a shame for you.")
+        else:
+            self.secure_clear_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.secure_clear_checkbox, "Warning", 
+                "This enables a feature to overwrite the password in memory after use.\n\nThis is an experimental security measure and relies on a compiled C library, aka shit MIGHT go wrong!!"))
+        security_layout.addRow("Securely clear password from memory:", self.secure_clear_checkbox)
+        security_group.setLayout(security_layout)
+        recovery_group = QGroupBox("Data integrity")
+        recovery_layout = QFormLayout()
+        self.recovery_checkbox = QCheckBox()
+        self.recovery_checkbox.setChecked(self.add_recovery_data)
+        self.recovery_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.recovery_checkbox, "Warning",
+            "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering."))
+        recovery_layout.addRow("Add partial data recovery info:", self.recovery_checkbox)
+        recovery_group.setLayout(recovery_layout)        
+        performance_group = QGroupBox("Performance")
         performance_layout = QFormLayout()
         self.chunk_size_spinbox = QSpinBox()
         self.chunk_size_spinbox.setRange(1, 128)
@@ -188,13 +232,13 @@ class PyLI(QWidget):
         self.kdf_iterations_spinbox.setValue(self.kdf_iterations)
         self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
         performance_layout.addRow("KDF iterations:", self.kdf_iterations_spinbox)
-        self.performance_group.setLayout(performance_layout)
-        self.performance_group.setEnabled(False)
-        self.unlock_checkbox = QCheckBox("Unlock advanced settings")
-        self.unlock_checkbox.toggled.connect(self.toggle_performance_settings)
-        layout.addWidget(self.unlock_checkbox)
-        layout.addWidget(self.performance_group)
-        layout.addStretch()
+        performance_group.setLayout(performance_layout)
+        layout.addWidget(security_group)
+        layout.addWidget(recovery_group)
+        layout.addWidget(performance_group)
+        layout.addStretch()        
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)        
         return advanced_tab
 
     def create_settings_tab(self):
@@ -213,18 +257,6 @@ class PyLI(QWidget):
         main_settings_layout.addWidget(save_button)
         return settings_tab
 
-    def toggle_performance_settings(self, checked):
-        if checked:
-            self.play_warning_sound()
-            dialog = CustomDialog("Warning", "Changing these settings can impact performance and security.\nIncorrect values may lead to errors or corrupted files.\nProceed with caution.", self)
-            result = dialog.exec()
-            if result == QDialog.Accepted:
-                self.performance_group.setEnabled(True)
-            else:
-                self.unlock_checkbox.setChecked(False)
-        else:
-            self.performance_group.setEnabled(False)
-
     def create_about_tab(self):
         about_tab = QWidget()
         about_layout = QVBoxLayout(about_tab)
@@ -233,9 +265,9 @@ class PyLI(QWidget):
         self.about_tab_widget.addTab(disclaimer_tab, "Legal Stuff")
         info_tab = self.create_info_tab()
         self.about_tab_widget.addTab(info_tab, "Nerd Info")
-        about_layout.addWidget(self.about_tab_widget)
         changelog_tab = self.create_log_tab()
         self.about_tab_widget.addTab(changelog_tab, "Changelogs")
+        about_layout.addWidget(self.about_tab_widget)
         return about_tab
 
     def create_disclaimer_tab(self):
@@ -254,14 +286,7 @@ class PyLI(QWidget):
         disclaimer_label = QLabel(disclaimer_text)
         disclaimer_label.setWordWrap(True)
         disclaimer_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        disclaimer_label.setStyleSheet("""
-            font-size: 9pt; 
-            padding: 15px; 
-            border: 1px solid #666; 
-            background-color: #2A2A2A;
-            border-radius: 0px;
-            line-height: 1.4;
-        """)
+        disclaimer_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 5px; line-height: 1.4;")
         scroll_area.setWidget(disclaimer_label)
         disclaimer_layout.addWidget(info_label)
         disclaimer_layout.addWidget(subtitle_label)
@@ -281,15 +306,7 @@ class PyLI(QWidget):
         info_label = QLabel(info_text)
         info_label.setWordWrap(True)
         info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        info_label.setStyleSheet("""
-            font-size: 9pt; 
-            padding: 15px; 
-            border: 1px solid #666; 
-            background-color: #2A2A2A;
-            border-radius: 0px;
-            line-height: 1.4;
-            font-family: 'Consolas', 'Monaco', monospace;
-        """)
+        info_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 5px; line-height: 1.4; font-family: 'Consolas', 'Monaco', monospace;")
         scroll_area.setWidget(info_label)
         info_layout.addWidget(title_label)
         info_layout.addWidget(scroll_area)
@@ -308,15 +325,7 @@ class PyLI(QWidget):
         log_label = QLabel(log_text)
         log_label.setWordWrap(True)
         log_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        log_label.setStyleSheet("""
-            font-size: 9pt; 
-            padding: 15px; 
-            border: 1px solid #666; 
-            background-color: #2A2A2A;
-            border-radius: 0px;
-            line-height: 1.4;
-            font-family: 'Consolas', 'Monaco', monospace;
-        """)
+        log_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 5px; line-height: 1.4; font-family: 'Consolas', 'Monaco', monospace;")
         scroll_area.setWidget(log_label)
         log_layout.addWidget(title_label)
         log_layout.addWidget(scroll_area)
@@ -324,77 +333,52 @@ class PyLI(QWidget):
 
     def load_disclaimer(self):
         try:
-            if getattr(sys, "frozen", False):
-                disclaimer_path = os.path.join(sys._MEIPASS, "txts", "disclaimer.txt")
-            else:
-                disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "disclaimer.txt")
-            with open(disclaimer_path, 'r', encoding='utf-8') as f:
-                return f.read().strip()
-        except FileNotFoundError:
-            return "Disclaimer file not found. You're on your own, ya know?"
-            print("[DEV PRINT] 'disclaimer.txt' not found.")
-        except Exception as e:
-            return f"Error loading disclaimer: {e}\n\nDefault message: Make up your own risks."
-            print("[DEV PRINT] Exception encountered when loading 'disclaimer.txt'")
+            if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "disclaimer.txt")
+            else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "disclaimer.txt")
+            with open(disclaimer_path, 'r', encoding='utf-8') as f: return f.read().strip()
+        except Exception: return "Disclaimer file not found."
 
     def load_info(self):
         try:
-            if getattr(sys, "frozen", False):
-                disclaimer_path = os.path.join(sys._MEIPASS, "txts", "info.txt")
-            else:
-                disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "info.txt")
-            with open(disclaimer_path, 'r', encoding='utf-8') as f:
-                return f.read().strip()
-        except FileNotFoundError:
-            print("[DEBUG] 'info.txt' not found.")
-            return "Info file not found. Nothing to see here, move along."
-        except Exception as e:
-            return f"Error loading info: {e}\n\nSorry nerds, the technical details are MIA."
-            print("[DEBUG] Exception encountered when loading 'info.txt'")
+            if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "info.txt")
+            else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "info.txt")
+            with open(disclaimer_path, 'r', encoding='utf-8') as f: return f.read().strip()
+        except Exception: return "Info file not found."
 
     def load_log(self):
         try:
-            if getattr(sys, "frozen", False):
-                disclaimer_path = os.path.join(sys._MEIPASS, "txts", "changelog.txt")
-            else:
-                disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
-            with open(disclaimer_path, 'r', encoding='utf-8') as f:
-                return f.read().strip()
-        except FileNotFoundError:
-            print("[DEBUG] 'info.txt' not found.")
-            return "Changelogs not found, no staying up to date for you."
-        except Exception as e:
-            return f"Error loading changelogs: {e}\n\nTry to figure out what's new and what's not."
-            print("[DEBUG] Exception encountered when loading 'info.txt'")
+            if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "changelog.txt")
+            else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
+            with open(disclaimer_path, 'r', encoding='utf-8') as f: return f.read().strip()
+        except Exception: return "Changelogs not found."
         
     def update_settings(self):
-        old_output_dir = self.output_dir
         self.custom_ext = self.custom_ext_field.text()
         self.output_dir = self.output_dir_field.text()
         self.new_name_type = self.new_name_type_combo.currentText()
         self.mute_sfx = self.mute_sfx_checkbox.isChecked()
         self.chunk_size_mb = self.chunk_size_spinbox.value()
         self.kdf_iterations = self.kdf_iterations_spinbox.value()
+        self.secure_clear = self.secure_clear_checkbox.isChecked()
+        self.add_recovery_data = self.recovery_checkbox.isChecked()
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-            if not os.path.exists(desktop_path):
-                desktop_path = os.path.expanduser("~")
+            if not os.path.exists(desktop_path): desktop_path = os.path.expanduser("~")
             self.output_dir = desktop_path
             self.output_dir_field.setText(self.output_dir)
+            self.play_warning_sound()
             dialog = CustomDialog("Invalid Path", f"Output directory was invalid and changed to:\n{desktop_path}", self)
             dialog.exec()
         self.save_settings()
-        self.status_label.setText("[INFO] Settings saved (hopefully)")
+        self.status_label.setText("[INFO] Settings saved.")
         
     def select_files(self):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.ExistingFiles)
         if file_dialog.exec():
             self.files_to_process = file_dialog.selectedFiles()
-            if len(self.files_to_process) == 1:
-                self.input_path_field.setText(self.files_to_process[0])
-            else:
-                self.input_path_field.setText(f"{len(self.files_to_process)} files selected.")
+            if len(self.files_to_process) == 1: self.input_path_field.setText(self.files_to_process[0])
+            else: self.input_path_field.setText(f"{len(self.files_to_process)} files selected.")
             self.status_label.setText("[INFO] Files ready to process.")
             
     def select_output_dir(self):
@@ -406,17 +390,16 @@ class PyLI(QWidget):
                 self.output_dir = selected_dir
                 self.output_dir_field.setText(self.output_dir)
             else:
-                self.sound_manager.play_sound("error.wav")
-                dialog = CustomDialog("Invalid Directory", "Selected directory does not exist or is not accessible.", self)
+                dialog = CustomDialog("Invalid Directory", "Selected directory does not exist.", self)
                 dialog.exec()
             
     def start_operation(self, operation):
-        password = self.password_field.text()     
+        password = self.password_field.text()
         if not self.files_to_process:
             self.play_warning_sound()
-            dialog = CustomDialog("Warning", "Yeah pal, maybe choose some file(s) first?", self)
+            dialog = CustomDialog("Warning", "Maybe choose some file(s) first, pal?", self)
             dialog.exec()
-            return          
+            return
         if not password:
             self.play_warning_sound()
             dialog = CustomDialog("Warning", "No password?! What the flip.", self)
@@ -427,17 +410,12 @@ class PyLI(QWidget):
         self.decrypt_button.setEnabled(False)
         self.progress_dialog = ProgressDialog("Processing...", self)
         self.progress_dialog.canceled.connect(self.cancel_operation)
-        self.progress_dialog.show()
+        self.progress_dialog.show()        
         self.batch_processor = BatchProcessorThread(
-            operation=operation,
-            file_paths=self.files_to_process,
-            password=password,
-            custom_ext=self.custom_ext,
-            output_dir=self.output_dir,
-            new_name_type=self.new_name_type,
-            chunk_size=self.chunk_size_mb * 1024 * 1024,
-            kdf_iterations=self.kdf_iterations,
-            parent=self
+            operation=operation, file_paths=self.files_to_process, password=password,
+            custom_ext=self.custom_ext, output_dir=self.output_dir, new_name_type=self.new_name_type,
+            chunk_size=self.chunk_size_mb * 1024 * 1024, kdf_iterations=self.kdf_iterations,
+            secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data, parent=self
         )
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
         self.batch_processor.progress_updated.connect(self.progress_dialog.file_progress_bar.setValue)
@@ -446,70 +424,53 @@ class PyLI(QWidget):
 
     def play_warning_sound(self):
         if not self.mute_sfx:
-            sounds_to_try = ["warning.wav", "info.wav", "error.wav"]
-            for sound in sounds_to_try:
-                if sound in self.sound_manager.sounds:
-                    self.sound_manager.play_sound(sound)
-                    break
+            self.sound_manager.play_sound("info.wav")
 
     def cancel_operation(self):
         if self.batch_processor and self.batch_processor.isRunning():
             self.batch_processor.cancel()
-            self.batch_processor.wait(3000)
-            if self.batch_processor.isRunning():
-                self.batch_processor.terminate()
-                self.batch_processor.wait()           
-        if self.progress_dialog:
-            self.progress_dialog.close()
+        if self.progress_dialog: self.progress_dialog.close()
         self.encrypt_button.setEnabled(True)
         self.decrypt_button.setEnabled(True)
         self.play_warning_sound()
-        self.status_label.setText("[INFO] No bueno.")
+        self.status_label.setText("[INFO] Operation canceled.")
             
     def on_batch_finished(self, errors):
-        if self.batch_processor:
-            if self.batch_processor.isRunning():
-                self.batch_processor.quit()
-                self.batch_processor.wait()
-            self.batch_processor = None         
-        if self.progress_dialog:
-            self.progress_dialog.close()
-            self.progress_dialog = None
+        if self.progress_dialog: self.progress_dialog.close()
         self.encrypt_button.setEnabled(True)
-        self.decrypt_button.setEnabled(True)
+        self.decrypt_button.setEnabled(True)        
         if errors:
-            if not self.mute_sfx:
-                self.sound_manager.play_sound("error.wav")
+            if not self.mute_sfx: self.sound_manager.play_sound("error.wav")
             error_message = "Some files failed to process:\n" + "\n".join(errors)
-            self.status_label.setText("[ERROR] Some file(s) did not meet the sum.")
+            self.status_label.setText("[ERROR] Some file(s) failed.")
             dialog = ErrorExportDialog("Ahh kaput...", error_message, errors, self)
             dialog.exec()
         else:
-            if not self.mute_sfx:
-                self.sound_manager.play_sound("success.wav")
-            self.status_label.setText("[INFO] All file(s) met estimated sum.")
-            dialog = CustomDialog("Success", "All file(s) processed successfully O.O", self)
+            if not self.mute_sfx: self.sound_manager.play_sound("success.wav")
+            self.status_label.setText("[INFO] All file(s) processed successfully.")
+            dialog = CustomDialog("Success", "All file(s) processed successfully.", self)
             dialog.exec()
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
+        if event.mimeData().hasUrls(): event.acceptProposedAction()
 
     def dropEvent(self, event):
-        self.files_to_process = [url.toLocalFile() for url in event.mimeData().urls()]
-        if len(self.files_to_process) == 1:
-            self.input_path_field.setText(self.files_to_process[0])
-        else:
-            self.input_path_field.setText(f"{len(self.files_to_process)} files selected.")
+        urls = [url.toLocalFile() for url in event.mimeData().urls()]
+        self.files_to_process.clear()
+        for url in urls:
+            if os.path.isdir(url):
+                for root, _, files in os.walk(url):
+                    for name in files:
+                        self.files_to_process.append(os.path.join(root, name))
+            else:
+                self.files_to_process.append(url)
+        if len(self.files_to_process) == 1: self.input_path_field.setText(self.files_to_process[0])
+        else: self.input_path_field.setText(f"{len(self.files_to_process)} files selected.")
         self.status_label.setText("[INFO] File(s) ready to process.")
         event.acceptProposedAction()
 
     def closeEvent(self, event):
-        if self.batch_processor and self.batch_processor.isRunning():
-            self.batch_processor.cancel()
-            self.batch_processor.wait(2000)
-            if self.batch_processor.isRunning():
-                self.batch_processor.terminate()                
+        if self.batch_processor and self.batch_processor.isRunning(): self.batch_processor.cancel()
         self.save_settings()
         self.sound_manager.unload()
         event.accept()

@@ -1,5 +1,5 @@
 ## importzz.py
-## last updated: 21/8/2025 <d/m/y>
+## last updated: 28/8/2025 <d/m/y>
 ## p-y-l-i
 
 import warnings
@@ -10,6 +10,10 @@ import hashlib
 import struct
 import secrets
 import base64
+import ctypes
+import argparse
+import getpass
+import reedsolo
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 import pygame

@@ -24,7 +24,7 @@ By using this software, you acknowledge that:
 
 IMPORTANT CRYPTO NOTES:
 - AES-GCM is no joke, forget your password and your data is gone unless you specialize in this kinda shit
-- This uses proper key derivation (PBKDF2 with 300,000 iterations)
+- This uses proper key derivation (PBKDF2 with 1,000,000 iterations as default)
 - Your encrypted files are YOUR responsibility
 - Keep your original file somewhere safe JUST in case
 - I'm not a cybersecurity expert, but on the bright side I'm not using ROT13!!

@@ -4,7 +4,7 @@ TECHNICAL SPECIFICATIONS
 CRYPTOGRAPHIC DETAILS:
 - Algorithm: AES-256-GCM (authenticated encryption)
 - Key Derivation: PBKDF2-HMAC-SHA256
-- Iterations: 1,000,000 (adjustable in source)
+- Iterations: 1,000,000 (default)
 - Salt Size: 16 bytes (random per file)
 - Nonce Size: 12 bytes (random per file)
 - Chunk Size: 3MB (3 * 1024 * 1024)
@@ -15,7 +15,7 @@ FILE FORMAT STRUCTURE:
 - Algorithm ID: 1 (1 byte)  
 - KDF ID: 1 (1 byte)
 - Iterations: 1,000,000 (4 bytes)
-- Salt Size: 16 (4 bytes)
+- Salt Size: 4 (16 bytes)
 - Salt: random 16 bytes
 - Nonce: random 12 bytes
 - Extension Length: variable (4 bytes)
@@ -41,8 +41,8 @@ BUILD INFO:
 - Crypto Library: cryptography (Rust based)
 - Compiler: Nuitka (when distributed)
 - Platform: Windows based, MIGHT work on Linux/Mac
-- Build version: 2-2-0-8-2-0-2-5
-- Version: 0.2a
+- Build version: 2-6-0-8-2-0-2-5
+- Version: 0.3a
 
 KNOWN LIMITATIONS:
 - No file shredding after encryption

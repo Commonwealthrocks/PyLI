@@ -1,7 +1,8 @@
 ## changelog.txt
 CHANGELOGS
 
-VERSION 0.1a
+VERSION 0.1a - 20.8.2025 <d/m/y>
+[PRIVATE BUILD]
 - Wrote core logic for the app
 - Wrote logic for config.json
 - Wrote pyqtSignals
@@ -13,14 +14,35 @@ VERSION 0.1a
 - Added error handling
 - Added custom dialog popups
 
-VERSION 0.2a
+VERSION 0.2a - 22.8.2025 <d/m/y>
+[PUBLIC BUILD]
+- Created this document
+- Bumped up KDF iterations to 1,000,000 (one-million)
 - Added sfx
-- Added Save Settings button
-- Added Mute Sound Effects toggle
+- Added Save settings button
+- Added Mute sfx toggle
 - Fixed past error handling
 - Fixed threading issues
-- Bumped up KDF iterations to 1,000,000 (one-million)
-- Created this document
+
+VERSION 0.3a - 26.8.2025 <d/m/y>
+[PUBLIC BUILD]
+- Re-worked settings tab
+- Minor GUI re-work
+- Fixed information error in `disclaimer.txt`
+- Added advanced preformance settings
+- Added adjustable KDF iteration
+- Added adjustable chunk size (MB)
+- Added grace handling
+
+VERSION 0.4a - 28.8.2025 <d/m/y>
+[PUBLIC BUILD]
+- Re-worked settings tab (advanced settings)
+- Fixed minor QThread and threading issues
+- Fixed typo in `disclaimer.txt` (100,000,000 >>> 1,000,000)
+- Added CLI support
+- Added partial data integrity
+- Added secure memory wiping for Windows with C (unsure if works for Linux or MacOS)
+- Added safety mesure for already encrypted (PyLI) file(s)
 
 That's all for now :)
 
