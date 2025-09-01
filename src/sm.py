@@ -36,7 +36,7 @@ def clear_buffer(buffer):
         except Exception:
             pass
 
-def is_secure_clear_available():
+def isca():
     return _lib is not None
 
 ## end

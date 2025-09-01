@@ -42,7 +42,12 @@ VERSION 0.4a - 28.8.2025 <d/m/y>
 - Added CLI support
 - Added partial data integrity
 - Added secure memory wiping for Windows with C (unsure if works for Linux or MacOS)
-- Added safety mesure for already encrypted (PyLI) file(s)
+- Added safety measure for already encrypted (PyLI) file(s)
+
+VERSION 0.5a - 1.9.2025 <d/m/y>
+[PUBLIC BUILD]
+
+- Added compression via zlib and lzma
 
 That's all for now :)
 

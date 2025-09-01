@@ -27,10 +27,10 @@ SECURITY NOTES:
 - Each file gets unique salt and nonce
 - GCM provides authentication (detects tampering)
 - Password never stored, only derived key used
-- Memory cleared after key derivation (best effort)
+- Memory cleared after key derivation (best effort with C if on)
 
 PERFORMANCE:
-- Multi threaded UI (crypto runs in background)
+- Multi threaded GUI (crypto runs in background)
 - Progress tracking for large files
 - Batch processing support
 - Memory efficient chunked processing
@@ -41,14 +41,13 @@ BUILD INFO:
 - Crypto Library: cryptography (Rust based)
 - Compiler: Nuitka (when distributed)
 - Platform: Windows based, MIGHT work on Linux/Mac
-- Build version: 2-6-0-8-2-0-2-5
-- Version: 0.3a
+- Build version: 0-1-0-9-2-0-2-5
+- Version: 0.5a
 
 KNOWN LIMITATIONS:
 - No file shredding after encryption
 - Progress reporting could be more accurate
 - No key file support (password only)
-- No compression before encryption
 - Single threaded crypto operations
 
 ## end

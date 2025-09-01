@@ -10,7 +10,7 @@ class CustomDialog(QDialog):
         self.setFixedSize(400, 200)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.setStyleSheet("QTextEdit { background-color: #3C3C3C; color: #E0E0E0; border: 1px solid #5A5A5A; }")
-        if hasattr(Qt, 'AA_DontCreateNativeWidgetSiblings'):
+        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
             QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
         if sys.platform == "win32":
             try:
@@ -42,7 +42,7 @@ class ErrorExportDialog(QDialog):
         self.setFixedSize(500, 300)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.setStyleSheet("QTextEdit { background-color: #3C3C3C; color: #E0E0E0; border: 1px solid #5A5A5A; }")
-        if hasattr(Qt, 'AA_DontCreateNativeWidgetSiblings'):
+        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
             QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
         if sys.platform == "win32":
             try:
@@ -101,7 +101,7 @@ class ProgressDialog(QDialog):
         self.file_progress_bar.setValue(0)        
         button_layout = QHBoxLayout()
         self.cancel_button = QPushButton("Cancel")
-        if hasattr(Qt, 'AA_DontCreateNativeWidgetSiblings'):
+        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
             QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
         if sys.platform == "win32":
             try:

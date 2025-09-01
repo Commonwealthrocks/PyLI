@@ -3,4 +3,4 @@ nuitka --standalone --windows-console-mode=disable --onefile --enable-plugin=pys
 
 
 Needed libraries (needs Python and pip in PATH)
-pip install PySide6 cryptography pygame
+pip install PySide6 cryptography pygame reedsolo

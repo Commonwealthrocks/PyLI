@@ -1,12 +1,12 @@
 ## gui.py
-## last updated: 28/8/2025 <d/m/y>
+## last updated: 01/9/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
 from outs import ProgressDialog, CustomDialog, ErrorExportDialog
 from sfx import SoundManager
-from sm import is_secure_clear_available
+from sm import isca
 
 class PyLI(QWidget):
     def __init__(self):
@@ -16,7 +16,7 @@ class PyLI(QWidget):
         self.setFixedSize(500, 380)
         self.setStyleSheet(STYLE_SHEET)
         self.setAcceptDrops(True)
-        if hasattr(Qt, 'AA_DontCreateNativeWidgetSiblings'):
+        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
             QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
         if sys.platform == "win32":
             try:
@@ -37,6 +37,7 @@ class PyLI(QWidget):
         self.kdf_iterations = 1000000
         self.secure_clear = False
         self.add_recovery_data = False
+        self.compression_level = "none"
         self.batch_processor = None
         self.progress_dialog = None
         self.config_path = self.get_config_path()
@@ -83,6 +84,7 @@ class PyLI(QWidget):
                 self.kdf_iterations = config.get("kdf_iterations", 1000000)
                 self.secure_clear = config.get("secure_clear", False)
                 self.add_recovery_data = config.get("add_recovery_data", False)
+                self.compression_level = config.get("compression_level", "none")
         except (FileNotFoundError, json.JSONDecodeError):
             pass
         except Exception as e:
@@ -102,7 +104,8 @@ class PyLI(QWidget):
             "chunk_size_mb": self.chunk_size_mb,
             "kdf_iterations": self.kdf_iterations,
             "secure_clear": self.secure_clear,
-            "add_recovery_data": self.add_recovery_data
+            "add_recovery_data": self.add_recovery_data,
+            "compression_level": self.compression_level
         }
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
@@ -191,19 +194,26 @@ class PyLI(QWidget):
         advanced_tab = QWidget()
         main_layout = QVBoxLayout(advanced_tab)
         main_layout.setContentsMargins(0, 0, 0, 0)
-
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("QScrollArea { border: none; }")
-
         content_widget = QWidget()
         layout = QVBoxLayout(content_widget)
-
+        compression_group = QGroupBox("Compression")
+        compression_layout = QFormLayout()
+        self.compression_combo = QComboBox()
+        self.compression_combo.addItems(["None", "Normal (fast)", "Good (balanced)", "Best (slow)"])
+        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best"}
+        current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
+        self.compression_combo.setCurrentText(current_text)
+        self.compression_combo.setToolTip("Selects the compression algorithm to use before encryption.\n'None' is fastest. Higher levels give better compression but are slower.\nCompression is automatically skipped for already-compressed file types (e.g., jpg, zip, mp4).")
+        compression_layout.addRow("Compression Level:", self.compression_combo)
+        compression_group.setLayout(compression_layout)
         security_group = QGroupBox("Security")
         security_layout = QFormLayout()
         self.secure_clear_checkbox = QCheckBox()
         self.secure_clear_checkbox.setChecked(self.secure_clear)
-        if not is_secure_clear_available():
+        if not isca():
             self.secure_clear_checkbox.setEnabled(False)
             self.secure_clear_checkbox.setToolTip("Disabled: eh, C library not found... a shame for you.")
         else:
@@ -233,6 +243,7 @@ class PyLI(QWidget):
         self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
         performance_layout.addRow("KDF iterations:", self.kdf_iterations_spinbox)
         performance_group.setLayout(performance_layout)
+        layout.addWidget(compression_group)
         layout.addWidget(security_group)
         layout.addWidget(recovery_group)
         layout.addWidget(performance_group)
@@ -335,21 +346,21 @@ class PyLI(QWidget):
         try:
             if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "disclaimer.txt")
             else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "disclaimer.txt")
-            with open(disclaimer_path, 'r', encoding='utf-8') as f: return f.read().strip()
+            with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
         except Exception: return "Disclaimer file not found."
 
     def load_info(self):
         try:
             if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "info.txt")
             else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "info.txt")
-            with open(disclaimer_path, 'r', encoding='utf-8') as f: return f.read().strip()
+            with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
         except Exception: return "Info file not found."
 
     def load_log(self):
         try:
             if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "changelog.txt")
             else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
-            with open(disclaimer_path, 'r', encoding='utf-8') as f: return f.read().strip()
+            with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
         except Exception: return "Changelogs not found."
         
     def update_settings(self):
@@ -361,6 +372,8 @@ class PyLI(QWidget):
         self.kdf_iterations = self.kdf_iterations_spinbox.value()
         self.secure_clear = self.secure_clear_checkbox.isChecked()
         self.add_recovery_data = self.recovery_checkbox.isChecked()
+        compression_mapping = {"None": "none", "Normal (Fast)": "normal", "Good (Balanced)": "good", "Best (Slow)": "best"}
+        self.compression_level = compression_mapping[self.compression_combo.currentText()]
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
             if not os.path.exists(desktop_path): desktop_path = os.path.expanduser("~")
@@ -415,7 +428,8 @@ class PyLI(QWidget):
             operation=operation, file_paths=self.files_to_process, password=password,
             custom_ext=self.custom_ext, output_dir=self.output_dir, new_name_type=self.new_name_type,
             chunk_size=self.chunk_size_mb * 1024 * 1024, kdf_iterations=self.kdf_iterations,
-            secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data, parent=self
+            secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data,
+            compression_level=self.compression_level, parent=self
         )
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
         self.batch_processor.progress_updated.connect(self.progress_dialog.file_progress_bar.setValue)

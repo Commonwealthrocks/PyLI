@@ -1,5 +1,5 @@
 ## cli.py
-## last updated: 28/8/2025 <d/m/y>
+## last updated: 01/9/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import CryptoWorker, MAGIC_NUMBER
@@ -7,20 +7,21 @@ from sm import is_secure_clear_available
 
 def print_progress(percentage, width=50):
     filled_len = int(round(width * percentage / 100))
-    bar = '█' * filled_len + '-' * (width - filled_len)
-    sys.stdout.write(f'\rProgress: |{bar}| {percentage:.2f}%')
+    bar = "+" * filled_len + "-" * (width - filled_len)
+    sys.stdout.write(f"\rProgress: |{bar}| {percentage:.2f}%")
     sys.stdout.flush()
 
 def main():
     parser = argparse.ArgumentParser(description="PyLI CLI")
     parser.add_argument("operation", choices=["encrypt", "decrypt"], help="The operation to perform.")
-    parser.add_argument("path", nargs='+', help="One or more input file(s) or folder(s).")
+    parser.add_argument("path", nargs="+", help="One or more input file(s) or folder(s).")
     parser.add_argument("-o", "--output", help="Output directory. Defaults to the input file's directory.")
     parser.add_argument("-p", "--password", help="Password for the operation. If not provided, will be prompted for securely.")
     parser.add_argument("--ext", default="dat", help="Custom extension for encrypted files. Default: 'dat'.")
     parser.add_argument("--name-type", choices=["keep", "hash", "base64"], default="keep", help="Filename transformation for encrypted files. Default: 'keep'.")
     parser.add_argument("--chunk-size", type=int, default=3, help="Chunk size in MB for processing. Default: 3.")
     parser.add_argument("--kdf-iter", type=int, default=1000000, help="Number of KDF iterations. Higher is more secure but slower. Default: 1,000,000.")
+    parser.add_argument("--compress", choices=["none", "normal", "good", "best"], default="none", help="Compression level. Default: 'none'.")
     parser.add_argument("--recovery-data", action="store_true", help="Add Reed-Solomon data recovery information. Increases file size.")
     secure_clear_help = "Securely clear password from memory after use. Requires compiled C library."
     if not is_secure_clear_available():
@@ -75,11 +76,12 @@ def main():
                 kdf_iterations=args.kdf_iter,
                 secure_clear=args.secure_clear,
                 add_recovery_data=args.recovery_data,
+                compression_level=args.compress,
                 progress_callback=print_progress
             )
-            if args.operation == 'encrypt':
+            if args.operation == "encrypt":
                 worker.encrypt_file()
-            elif args.operation == 'decrypt':
+            elif args.operation == "decrypt":
                 worker.decrypt_file()
             print("\nDone.")
         except Exception as e:
@@ -95,3 +97,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+## end
