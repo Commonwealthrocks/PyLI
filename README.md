@@ -29,6 +29,9 @@ My take on this?
 If you wish to use WinRAR or 7-zip first for compression, by all means go ahead. But **PyLI's** compression rates are nothing
 to be mad of too!!
 
+For a very useless benchmark, go [here](https://github.com/Commonwealthrocks/PyLI/blob/main/benchmark.md)!!
+
+
 ## "What about the master password?" - *Well, just cause we use military grade encryption does not mean you should cheap out on this...*
 AES-256-GCM is complex math all under one master password, even with 1 MILLION key derivations with PBKDF2HMAC. If your password is weak
 example `1234` or `password`, then yeah expect AES to be pure useless; use strong passwords for sensitive information.
