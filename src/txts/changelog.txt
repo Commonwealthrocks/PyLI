@@ -44,10 +44,17 @@ VERSION 0.4a - 28.8.2025 <d/m/y>
 - Added secure memory wiping for Windows with C (unsure if works for Linux or MacOS)
 - Added safety measure for already encrypted (PyLI) file(s)
 
-VERSION 0.5a - 1.9.2025 <d/m/y>
+VERSION 0.5a - 2.9.2025 <d/m/y>
 [PUBLIC BUILD]
-
-- Added compression via zlib and lzma
+- Added compression with zlib and lzma
+- Added debug console (alt + 0, Administrator needed)
+- Improved error handling for batch processes
+- "Fixed" drag n' drop breaking when running as Administrator
+- Fixed compression to stay consistent across chunks
+- Fixed KDF interchange issue
+- Fixed base64 filenames to use safe chars and avoid PATH length drama
+- Fixed minor KeyError
+- Fixed minor mismatch in CLI version
 
 That's all for now :)
 

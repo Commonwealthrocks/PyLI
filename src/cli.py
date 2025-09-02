@@ -3,7 +3,7 @@
 ## p-y-l-i
 from importzz import *
 from core import CryptoWorker, MAGIC_NUMBER
-from sm import is_secure_clear_available
+from sm import isca
 
 def print_progress(percentage, width=50):
     filled_len = int(round(width * percentage / 100))
@@ -24,11 +24,11 @@ def main():
     parser.add_argument("--compress", choices=["none", "normal", "good", "best"], default="none", help="Compression level. Default: 'none'.")
     parser.add_argument("--recovery-data", action="store_true", help="Add Reed-Solomon data recovery information. Increases file size.")
     secure_clear_help = "Securely clear password from memory after use. Requires compiled C library."
-    if not is_secure_clear_available():
+    if not isca():
         secure_clear_help += " (DISABLED: library not found)"
     parser.add_argument("--secure-clear", action="store_true", help=secure_clear_help)
     args = parser.parse_args()
-    if args.secure_clear and not is_secure_clear_available():
+    if args.secure_clear and not isca():
         print("Warning: Secure password clearing is enabled but the C library is not available. This feature will not work.")
     password = args.password
     if not password:

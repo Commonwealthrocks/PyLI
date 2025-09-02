@@ -1,5 +1,5 @@
 ## core.py
-## last updated: 01/9/2025 <d/m/y>
+## last updated: 02/9/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from sm import clear_buffer
@@ -34,7 +34,9 @@ class CryptoWorker:
         self.progress_callback = progress_callback
         self.is_canceled = False
 
-    def _derive_key(self, salt):
+    def _derive_key(self, salt, iterations=None):
+        if iterations is None:
+            iterations = self.kdf_iterations
         pwd_bytes = self.password.encode("utf-8")
         pwd_buffer = ctypes.create_string_buffer(len(pwd_bytes))
         pwd_buffer.raw = pwd_bytes
@@ -42,12 +44,13 @@ class CryptoWorker:
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
-            iterations=self.kdf_iterations,
+            iterations=iterations,
             backend=default_backend()
         )
-        key = kdf.derive(pwd_bytes)
+        key = kdf.derive(pwd_buffer.value)
         if self.secure_clear:
             clear_buffer(pwd_buffer) 
+        pwd_bytes = None
         return key
 
     def encrypt_file(self):
@@ -76,7 +79,8 @@ class CryptoWorker:
             self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
         elif self.new_name_type == "base64":
             original_name = os.path.basename(self.in_path)
-            base64_name = base64.b64encode(original_name.encode("utf-8")).decode("utf-8")
+            base64_bytes = base64.urlsafe_b64encode(original_name.encode("utf-8"))
+            base64_name = base64_bytes.decode("utf-8").rstrip("=")[:96]
             out_filename = f"{base64_name}.{self.custom_ext}"
             self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
         else:
@@ -143,7 +147,7 @@ class CryptoWorker:
                 ecc_bytes = struct.unpack("!B", infile.read(1))[0]
             kdf_iterations = struct.unpack("!I", infile.read(4))[0]
             salt = infile.read(SALT_SIZE)
-            key = self._derive_key(salt)
+            key = self._derive_key(salt, iterations=kdf_iterations)
             aesgcm = AESGCM(key)
             ext_nonce = infile.read(NONCE_SIZE)
             ext_len = struct.unpack("!I", infile.read(4))[0]

@@ -1,12 +1,28 @@
 ## gui.py
-## last updated: 01/9/2025 <d/m/y>
+## last updated: 02/9/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
-from outs import ProgressDialog, CustomDialog, ErrorExportDialog
+from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole
 from sfx import SoundManager
 from sm import isca
+
+def is_admin():
+    try:
+        if sys.platform == "win32":
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        else:
+            return os.geteuid() == 0
+    except Exception:
+        return False
+
+class QtStream(QObject):
+    text_written = pyqtSignal(str)
+    def write(self, text):
+        self.text_written.emit(str(text))
+    def flush(self):
+        pass
 
 class PyLI(QWidget):
     def __init__(self):
@@ -48,6 +64,9 @@ class PyLI(QWidget):
         self.sound_manager.load_sound("success.wav")
         self.sound_manager.load_sound("error.wav")
         self.sound_manager.load_sound("info.wav")
+        self.is_admin = is_admin()
+        self.debug_console = None
+        self.init_debug_console()
         main_layout = QVBoxLayout(self)
         self.tab_widget = QTabWidget()
         self.tab_widget.addTab(self.create_main_tab(), "Main")
@@ -55,6 +74,29 @@ class PyLI(QWidget):
         self.tab_widget.addTab(self.create_about_tab(), "About")
         main_layout.addWidget(self.tab_widget)
         self.setLayout(main_layout)
+        if self.is_admin:
+            dialog = CustomDialog("Warning", "You are running PyLI with Administrator privileges, due to this some feature's like drag n' drop for Windows will be disabled.\n\nWhy? Yeah I got no fucking clue too.", self)
+            dialog.exec()
+
+    def init_debug_console(self):
+        if self.is_admin:
+            self.debug_console = DebugConsole(parent=self)
+            self.stream_redirect = QtStream()
+            self.stream_redirect.text_written.connect(self.debug_console.append_text)
+            sys.stdout = self.stream_redirect
+            sys.stderr = self.stream_redirect
+            print("--- PyLI debug console Initialized (Administrator) ---")
+            print("Press Alt+0 to show / hide this console.")
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_0 and event.modifiers() == Qt.AltModifier:
+            if self.is_admin and self.debug_console:
+                if self.debug_console.isVisible():
+                    self.debug_console.hide()
+                else:
+                    self.debug_console.show()
+        else:
+            super().keyPressEvent(event)
 
     def get_config_path(self):
         if sys.platform == "win32":
@@ -69,7 +111,7 @@ class PyLI(QWidget):
                 desktop_path = os.path.expanduser("~")
             self.output_dir = desktop_path
             self.save_settings()
-            dialog = CustomDialog("Output directory fix", f"Your output directory was invalid and has been changed to:\n{desktop_path}", self)
+            dialog = CustomDialog("Output directory fix", f"Your output directory was invalid and has been changed to:\n{desktop_path}\n\nThank me later :3", self)
             dialog.exec()
 
     def load_settings(self):
@@ -206,7 +248,7 @@ class PyLI(QWidget):
         compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best"}
         current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
         self.compression_combo.setCurrentText(current_text)
-        self.compression_combo.setToolTip("Selects the compression algorithm to use before encryption.\n'None' is fastest. Higher levels give better compression but are slower.\nCompression is automatically skipped for already-compressed file types (e.g., jpg, zip, mp4).")
+        self.compression_combo.setToolTip("Selects the compression algorithm to use before encryption.\n'None' is fastest. Higher levels give better compression but are slower.\nCompression is automatically skipped for already compressed file types (e.g., jpg, mp4 and so on...).")
         compression_layout.addRow("Compression Level:", self.compression_combo)
         compression_group.setLayout(compression_layout)
         security_group = QGroupBox("Security")
@@ -273,9 +315,9 @@ class PyLI(QWidget):
         about_layout = QVBoxLayout(about_tab)
         self.about_tab_widget = QTabWidget()
         disclaimer_tab = self.create_disclaimer_tab()
-        self.about_tab_widget.addTab(disclaimer_tab, "Legal Stuff")
+        self.about_tab_widget.addTab(disclaimer_tab, "Legal stuff")
         info_tab = self.create_info_tab()
-        self.about_tab_widget.addTab(info_tab, "Nerd Info")
+        self.about_tab_widget.addTab(info_tab, "Nerd info")
         changelog_tab = self.create_log_tab()
         self.about_tab_widget.addTab(changelog_tab, "Changelogs")
         about_layout.addWidget(self.about_tab_widget)
@@ -361,7 +403,7 @@ class PyLI(QWidget):
             if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "changelog.txt")
             else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
             with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
-        except Exception: return "Changelogs not found."
+        except Exception: return "Changelogs file not found."
         
     def update_settings(self):
         self.custom_ext = self.custom_ext_field.text()
@@ -372,7 +414,7 @@ class PyLI(QWidget):
         self.kdf_iterations = self.kdf_iterations_spinbox.value()
         self.secure_clear = self.secure_clear_checkbox.isChecked()
         self.add_recovery_data = self.recovery_checkbox.isChecked()
-        compression_mapping = {"None": "none", "Normal (Fast)": "normal", "Good (Balanced)": "good", "Best (Slow)": "best"}
+        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best"}
         self.compression_level = compression_mapping[self.compression_combo.currentText()]
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -382,8 +424,11 @@ class PyLI(QWidget):
             self.play_warning_sound()
             dialog = CustomDialog("Invalid Path", f"Output directory was invalid and changed to:\n{desktop_path}", self)
             dialog.exec()
+        if not self.mute_sfx: self.sound_manager.play_sound("success.wav")
+        dialog = CustomDialog("Success", "Settings have been saved to 'config.json'", self)
+        dialog.exec()
         self.save_settings()
-        self.status_label.setText("[INFO] Settings saved.")
+        self.status_label.setText("[INFO] Settings saved (hopefully)")
         
     def select_files(self):
         file_dialog = QFileDialog()
@@ -484,6 +529,8 @@ class PyLI(QWidget):
         event.acceptProposedAction()
 
     def closeEvent(self, event):
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
         if self.batch_processor and self.batch_processor.isRunning(): self.batch_processor.cancel()
         self.save_settings()
         self.sound_manager.unload()

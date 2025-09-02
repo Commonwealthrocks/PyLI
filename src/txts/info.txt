@@ -11,7 +11,7 @@ CRYPTOGRAPHIC DETAILS:
 
 FILE FORMAT STRUCTURE:
 - Magic Number: "PYLI\x00" (5 bytes)
-- Format Version: 2 (1 byte)
+- Format Version: 4 (1 byte)
 - Algorithm ID: 1 (1 byte)  
 - KDF ID: 1 (1 byte)
 - Iterations: 1,000,000 (4 bytes)
@@ -48,6 +48,6 @@ KNOWN LIMITATIONS:
 - No file shredding after encryption
 - Progress reporting could be more accurate
 - No key file support (password only)
-- Single threaded crypto operations
+- Single threaded crypto operations (multi-threading sounds un-fun?)
 
 ## end

@@ -21,8 +21,8 @@ try:
     _lib.zero_memory.restype = None
 except (OSError, AttributeError) as e:
     _lib = None
-    print(f"[DEBUG] Could not load secure memory library '{lib_name}': {e}")
-    print("[DEBUG] Secure password clearing will be disabled.")
+    print(f"[DEV PRINT] Could not load secure memory library '{lib_name}': {e}")
+    print("[DEV PRINT] Secure password clearing will be disabled.")
 
 def clear_buffer(buffer):
     if not isinstance(buffer, ctypes.Array) or not buffer._type_ == ctypes.c_char:
