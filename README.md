@@ -22,16 +22,12 @@ All of the above in general, PyLI allows that in just 4 simple steps!
 
 
 ## "Can't I just use WinRAR or 7z for encryption?" - *Well, yes you technically can.*
-...but why settle for a swiss army knife when you can have a sledgehammer? While **WinRAR** and **7z** are great for compression and
-do offer encryption, they're not built from the ground up to be a dedicated security tool.
-**PyLI's** only job is to encrypt your files and do it well.
-
+...but as of version `0.5a`, **PyLI** has compression included which in **SOME** tests beats out WinRAR and 7-zip, then again it might be slower than those two.
+But considering it's Python and optional, nothing stops you to keep using WinRAR or 7-zip first THEN **PyLI**.
 
 My take on this?
-If it's for a single file or not too many files, use **PyLI** directly to encrypt them.
-If you have multiple files you wish to encrypt, I recommend first compressing them with either app, THEN using **PyLI** to encrypt your
-`.zip`, `.rar`, `.7z` or whatever file for an double-layered encryption hell. After all I'm not a compression expert, they are!!
-
+If you wish to use WinRAR or 7-zip first for compression, by all means go ahead. But **PyLI's** compression rates are nothing
+to be mad of too!!
 
 ## "What about the master password?" - *Well, just cause we use military grade encryption does not mean you should cheap out on this...*
 AES-256-GCM is complex math all under one master password, even with 1 MILLION key derivations with PBKDF2HMAC. If your password is weak
