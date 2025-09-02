@@ -7,6 +7,12 @@
 - Open source, and easy to wipe off your system if you hate it.
 
 
+![Made with Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
+![License](https://img.shields.io/github/license/Commonwealthrocks/PyLI)
+![Status](https://img.shields.io/badge/status-alpha-orange)
+![Benchmarks](https://img.shields.io/badge/benchmarks-✅-brightgreen)
+
+
 # **PyLI** - *Not harvesting your data since 2025!*
 **PyLI** is an application coded in Python used for encrypting files with AES-256-GCM and PBKDF2HMAC for key derivation up to
 1,000,000 (editable in source). It uses Salt and Nonce to ensure secure and robust cryptographic operations, pretty fancy I know...!
