@@ -1,6 +1,7 @@
 ## stylez.py
-## last updated: 20/8/2025 <d/m/y>
+## last updated: 20/08/2025 <d/m/y>
 ## p-y-l-i
+
 STYLE_SHEET = """
 QWidget {
     font-family: 'MS Shell Dlg 2', 'Tahoma', 'Arial';

@@ -1,5 +1,5 @@
 ## sfx.py
-## last updated: 26/8/2025 <d/m/y>
+## last updated: 06/09/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 
@@ -7,8 +7,7 @@ class SoundManager:
     def __init__(self):
         self.sounds = {}
         self.sound_dir = None
-        self.mixer_initialized = False
-        
+        self.mixer_initialized = False        
         try:
             pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
             pygame.mixer.init()

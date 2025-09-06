@@ -1,5 +1,5 @@
 ## importzz.py
-## last updated: 01/9/2025 <d/m/y>
+## last updated: 06/09/2025 <d/m/y>
 ## p-y-l-i
 
 import warnings
@@ -15,6 +15,7 @@ import argparse
 import getpass
 import reedsolo
 import zlib
+import io
 import lzma
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")

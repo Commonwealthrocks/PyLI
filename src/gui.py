@@ -1,5 +1,5 @@
 ## gui.py
-## last updated: 02/9/2025 <d/m/y>
+## last updated: 06/9/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
@@ -11,7 +11,7 @@ from sm import isca
 def is_admin():
     try:
         if sys.platform == "win32":
-            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            return ctypes.windll.shell32.IsUserIsAdmin() != 0
         else:
             return os.geteuid() == 0
     except Exception:
@@ -54,6 +54,7 @@ class PyLI(QWidget):
         self.secure_clear = False
         self.add_recovery_data = False
         self.compression_level = "none"
+        self.archive_mode = False
         self.batch_processor = None
         self.progress_dialog = None
         self.config_path = self.get_config_path()
@@ -127,6 +128,7 @@ class PyLI(QWidget):
                 self.secure_clear = config.get("secure_clear", False)
                 self.add_recovery_data = config.get("add_recovery_data", False)
                 self.compression_level = config.get("compression_level", "none")
+                self.archive_mode = config.get("archive_mode", False)
         except (FileNotFoundError, json.JSONDecodeError):
             pass
         except Exception as e:
@@ -147,14 +149,15 @@ class PyLI(QWidget):
             "kdf_iterations": self.kdf_iterations,
             "secure_clear": self.secure_clear,
             "add_recovery_data": self.add_recovery_data,
-            "compression_level": self.compression_level
+            "compression_level": self.compression_level,
+            "archive_mode": self.archive_mode
         }
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
 
     def create_main_tab(self):
         main_tab = QWidget()
-        main_layout = QVBoxLayout(main_tab) 
+        main_layout = QVBoxLayout(main_tab)
         input_group = QGroupBox("Select file(s) or folder (drag n' drop)")
         input_layout = QVBoxLayout()
         self.input_path_field = QLineEdit()
@@ -165,16 +168,16 @@ class PyLI(QWidget):
         input_layout.addWidget(self.input_path_field)
         input_layout.addWidget(browse_button)
         input_group.setLayout(input_layout)
-        password_group = QGroupBox("Encryption/decryption password")
+        password_group = QGroupBox("Encryption / decryption password")
         password_layout = QVBoxLayout()
         self.password_field = QLineEdit()
         self.password_field.setEchoMode(QLineEdit.Password)
-        self.password_field.setPlaceholderText("Enter password")   
+        self.password_field.setPlaceholderText("Enter password")
         password_layout.addWidget(self.password_field)
         password_group.setLayout(password_layout)
         button_layout = QHBoxLayout()
         self.encrypt_button = QPushButton("Encrypt")
-        self.encrypt_button.clicked.connect(lambda: self.start_operation("encrypt")) 
+        self.encrypt_button.clicked.connect(lambda: self.start_operation("encrypt"))
         self.decrypt_button = QPushButton("Decrypt")
         self.decrypt_button.clicked.connect(lambda: self.start_operation("decrypt"))
         button_layout.addWidget(self.encrypt_button)
@@ -194,7 +197,7 @@ class PyLI(QWidget):
         output_group = QGroupBox("Output settings")
         output_layout = QFormLayout()
         self.custom_ext_field = QLineEdit(self.custom_ext)
-        output_layout.addRow("Custom extension:", self.custom_ext_field)
+        output_layout.addRow("Custom extension:", self.custom_ext_field)  
         output_dir_layout = QHBoxLayout()
         self.output_dir_field = QLineEdit(self.output_dir)
         self.output_dir_field.setReadOnly(True)
@@ -202,11 +205,15 @@ class PyLI(QWidget):
         self.output_dir_browse_button.clicked.connect(self.select_output_dir)
         output_dir_layout.addWidget(self.output_dir_field)
         output_dir_layout.addWidget(self.output_dir_browse_button)
-        output_layout.addRow("Output directory:", output_dir_layout)
+        output_layout.addRow("Output directory:", output_dir_layout)  
         self.new_name_type_combo = QComboBox()
         self.new_name_type_combo.addItems(["keep", "hash", "base64"])
         self.new_name_type_combo.setCurrentText(self.new_name_type)
         output_layout.addRow("New name type:", self.new_name_type_combo)
+        self.archive_mode_checkbox = QCheckBox()
+        self.archive_mode_checkbox.setChecked(self.archive_mode)
+        self.archive_mode_checkbox.setToolTip("When multiple files are selected for encryption, combine them into a single archive file first.\nDecryption will extract all files to a folder.")
+        output_layout.addRow("Archive mode:", self.archive_mode_checkbox)
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
         layout.addStretch()
@@ -232,26 +239,36 @@ class PyLI(QWidget):
             if dialog.exec() != QDialog.Accepted:
                 checkbox.setChecked(False)
 
+    def check_ultrakill_warning(self, text):
+        if text == "ULTRAKILL (EXTREMELY slow)":
+            self.play_warning_sound()
+            dialog = CustomDialog("Warning: CPU Intensive", "You have selected the 'ULTRAKILL' compression level.\n\nThis will take a very, VERY long time and can be very CPU heavy.", self)
+            dialog.exec()
+
     def create_settings_advanced_tab(self):
         advanced_tab = QWidget()
         main_layout = QVBoxLayout(advanced_tab)
         main_layout.setContentsMargins(0, 0, 0, 0)
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("QScrollArea { border: none; }")
+        scroll_area.setStyleSheet("""
+            QScrollArea { border: none; }
+            QGroupBox { margin-bottom: 10px; }
+        """)
         content_widget = QWidget()
         layout = QVBoxLayout(content_widget)
         compression_group = QGroupBox("Compression")
         compression_layout = QFormLayout()
         self.compression_combo = QComboBox()
-        self.compression_combo.addItems(["None", "Normal (fast)", "Good (balanced)", "Best (slow)"])
-        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best"}
+        self.compression_combo.addItems(["None", "Normal (fast)", "Good (balanced)", "Best (slow)", "ULTRAKILL (EXTREMELY slow)"])
+        self.compression_combo.currentTextChanged.connect(self.check_ultrakill_warning)
+        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best", "ULTRAKILL (EXTREMELY slow)": "ultrakill"}
         current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
         self.compression_combo.setCurrentText(current_text)
         self.compression_combo.setToolTip("Selects the compression algorithm to use before encryption.\n'None' is fastest. Higher levels give better compression but are slower.\nCompression is automatically skipped for already compressed file types (e.g., jpg, mp4 and so on...).")
         compression_layout.addRow("Compression Level:", self.compression_combo)
         compression_group.setLayout(compression_layout)
-        security_group = QGroupBox("Security")
+        security_group = QGroupBox("Security/Data integrity")
         security_layout = QFormLayout()
         self.secure_clear_checkbox = QCheckBox()
         self.secure_clear_checkbox.setChecked(self.secure_clear)
@@ -259,18 +276,15 @@ class PyLI(QWidget):
             self.secure_clear_checkbox.setEnabled(False)
             self.secure_clear_checkbox.setToolTip("Disabled: eh, C library not found... a shame for you.")
         else:
-            self.secure_clear_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.secure_clear_checkbox, "Warning", 
+            self.secure_clear_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.secure_clear_checkbox, "Warning",
                 "This enables a feature to overwrite the password in memory after use.\n\nThis is an experimental security measure and relies on a compiled C library, aka shit MIGHT go wrong!!"))
         security_layout.addRow("Securely clear password from memory:", self.secure_clear_checkbox)
-        security_group.setLayout(security_layout)
-        recovery_group = QGroupBox("Data integrity")
-        recovery_layout = QFormLayout()
         self.recovery_checkbox = QCheckBox()
         self.recovery_checkbox.setChecked(self.add_recovery_data)
         self.recovery_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.recovery_checkbox, "Warning",
             "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering."))
-        recovery_layout.addRow("Add partial data recovery info:", self.recovery_checkbox)
-        recovery_group.setLayout(recovery_layout)        
+        security_layout.addRow("Add partial data recovery info:", self.recovery_checkbox)
+        security_group.setLayout(security_layout)
         performance_group = QGroupBox("Performance")
         performance_layout = QFormLayout()
         self.chunk_size_spinbox = QSpinBox()
@@ -287,11 +301,10 @@ class PyLI(QWidget):
         performance_group.setLayout(performance_layout)
         layout.addWidget(compression_group)
         layout.addWidget(security_group)
-        layout.addWidget(recovery_group)
         layout.addWidget(performance_group)
-        layout.addStretch()        
+        layout.addStretch()
         scroll_area.setWidget(content_widget)
-        main_layout.addWidget(scroll_area)        
+        main_layout.addWidget(scroll_area)
         return advanced_tab
 
     def create_settings_tab(self):
@@ -364,7 +377,7 @@ class PyLI(QWidget):
         info_layout.addWidget(title_label)
         info_layout.addWidget(scroll_area)
         return info_widget
-    
+
     def create_log_tab(self):
         log_widget = QWidget()
         log_layout = QVBoxLayout(log_widget)
@@ -404,8 +417,10 @@ class PyLI(QWidget):
             else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
             with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
         except Exception: return "Changelogs file not found."
-        
+
     def update_settings(self):
+        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best", "ULTRAKILL (EXTREMELY slow)": "ultrakill"}
+        self.compression_level = compression_mapping[self.compression_combo.currentText()]
         self.custom_ext = self.custom_ext_field.text()
         self.output_dir = self.output_dir_field.text()
         self.new_name_type = self.new_name_type_combo.currentText()
@@ -414,8 +429,7 @@ class PyLI(QWidget):
         self.kdf_iterations = self.kdf_iterations_spinbox.value()
         self.secure_clear = self.secure_clear_checkbox.isChecked()
         self.add_recovery_data = self.recovery_checkbox.isChecked()
-        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best"}
-        self.compression_level = compression_mapping[self.compression_combo.currentText()]
+        self.archive_mode = self.archive_mode_checkbox.isChecked()
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
             if not os.path.exists(desktop_path): desktop_path = os.path.expanduser("~")
@@ -429,7 +443,7 @@ class PyLI(QWidget):
         dialog.exec()
         self.save_settings()
         self.status_label.setText("[INFO] Settings saved (hopefully)")
-        
+
     def select_files(self):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.ExistingFiles)
@@ -438,7 +452,7 @@ class PyLI(QWidget):
             if len(self.files_to_process) == 1: self.input_path_field.setText(self.files_to_process[0])
             else: self.input_path_field.setText(f"{len(self.files_to_process)} files selected.")
             self.status_label.setText("[INFO] Files ready to process.")
-            
+
     def select_output_dir(self):
         dir_dialog = QFileDialog()
         dir_dialog.setFileMode(QFileDialog.Directory)
@@ -448,36 +462,37 @@ class PyLI(QWidget):
                 self.output_dir = selected_dir
                 self.output_dir_field.setText(self.output_dir)
             else:
-                dialog = CustomDialog("Invalid Directory", "Selected directory does not exist.", self)
+                dialog = CustomDialog("Invalid directory", "Selected directory does not exist, somehow...?", self)
                 dialog.exec()
-            
+
     def start_operation(self, operation):
         password = self.password_field.text()
         if not self.files_to_process:
             self.play_warning_sound()
-            dialog = CustomDialog("Warning", "Maybe choose some file(s) first, pal?", self)
+            dialog = CustomDialog("Eh?", "Maybe choose some file(s) first, pal?", self)
             dialog.exec()
             return
         if not password:
             self.play_warning_sound()
-            dialog = CustomDialog("Warning", "No password?! What the flip.", self)
+            dialog = CustomDialog("Perhaps no?", "No password?! What the flip.", self)
             dialog.exec()
-            return
+            return 
         self.status_label.setText("[INFO] Starting...")
         self.encrypt_button.setEnabled(False)
-        self.decrypt_button.setEnabled(False)
+        self.decrypt_button.setEnabled(False)    
         self.progress_dialog = ProgressDialog("Processing...", self)
         self.progress_dialog.canceled.connect(self.cancel_operation)
-        self.progress_dialog.show()        
+        self.progress_dialog.show()    
         self.batch_processor = BatchProcessorThread(
             operation=operation, file_paths=self.files_to_process, password=password,
             custom_ext=self.custom_ext, output_dir=self.output_dir, new_name_type=self.new_name_type,
             chunk_size=self.chunk_size_mb * 1024 * 1024, kdf_iterations=self.kdf_iterations,
             secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data,
-            compression_level=self.compression_level, parent=self
-        )
+            compression_level=self.compression_level, archive_mode=self.archive_mode,
+            parent=self)
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
-        self.batch_processor.progress_updated.connect(self.progress_dialog.file_progress_bar.setValue)
+        self.batch_processor.status_message.connect(lambda msg: self.progress_dialog.file_label.setText(msg))
+        self.batch_processor.progress_updated.connect(lambda p: self.progress_dialog.file_progress_bar.setValue(int(p)))
         self.batch_processor.finished.connect(self.on_batch_finished)
         self.batch_processor.start()
 
@@ -493,11 +508,11 @@ class PyLI(QWidget):
         self.decrypt_button.setEnabled(True)
         self.play_warning_sound()
         self.status_label.setText("[INFO] Operation canceled.")
-            
+
     def on_batch_finished(self, errors):
         if self.progress_dialog: self.progress_dialog.close()
         self.encrypt_button.setEnabled(True)
-        self.decrypt_button.setEnabled(True)        
+        self.decrypt_button.setEnabled(True)
         if errors:
             if not self.mute_sfx: self.sound_manager.play_sound("error.wav")
             error_message = "Some files failed to process:\n" + "\n".join(errors)

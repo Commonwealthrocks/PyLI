@@ -1,5 +1,5 @@
 ## cli.py
-## last updated: 01/9/2025 <d/m/y>
+## last updated: 05/09/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import CryptoWorker, MAGIC_NUMBER
@@ -19,44 +19,35 @@ def main():
     parser.add_argument("-p", "--password", help="Password for the operation. If not provided, will be prompted for securely.")
     parser.add_argument("--ext", default="dat", help="Custom extension for encrypted files. Default: 'dat'.")
     parser.add_argument("--name-type", choices=["keep", "hash", "base64"], default="keep", help="Filename transformation for encrypted files. Default: 'keep'.")
-    parser.add_argument("--chunk-size", type=int, default=3, help="Chunk size in MB for processing. Default: 3.")
-    parser.add_argument("--kdf-iter", type=int, default=1000000, help="Number of KDF iterations. Higher is more secure but slower. Default: 1,000,000.")
-    parser.add_argument("--compress", choices=["none", "normal", "good", "best"], default="none", help="Compression level. Default: 'none'.")
-    parser.add_argument("--recovery-data", action="store_true", help="Add Reed-Solomon data recovery information. Increases file size.")
-    secure_clear_help = "Securely clear password from memory after use. Requires compiled C library."
-    if not isca():
-        secure_clear_help += " (DISABLED: library not found)"
-    parser.add_argument("--secure-clear", action="store_true", help=secure_clear_help)
-    args = parser.parse_args()
-    if args.secure_clear and not isca():
-        print("Warning: Secure password clearing is enabled but the C library is not available. This feature will not work.")
+    parser.add_argument("--chunk-size", type=int, default=3, help="Chunk size in MB. Default: 3 MB.")
+    parser.add_argument("--kdf-iter", type=int, default=1000000, help="Number of KDF iterations. Default: 1,000,000.")
+    parser.add_argument("--secure-clear", action="store_true", help="Attempt to securely clear sensitive data from memory. WARNING: Experimental.")
+    parser.add_argument("--recovery-data", action="store_true", help="Add Reed-Solomon recovery data to the file for minor corruption protection.")
+    parser.add_argument("--compress", choices=["none", "normal", "good", "best", "ultrakill"], default="none", help="Compression level. 'ultrakill' uses preset 9 and is very slow.")    
+    args = parser.parse_args()    
+    file_paths = []
+    for path in args.path:
+        if os.path.isdir(path):
+            for root, _, files in os.walk(path):
+                for name in files:
+                    file_paths.append(os.path.join(root, name))
+        elif os.path.isfile(path):
+            file_paths.append(path)
+        else:
+            print(f"Warning: '{path}' is not a valid file or directory. Skipping.")
+    if not file_paths:
+        print("No valid files found for processing.")
+        return
     password = args.password
     if not password:
-        try:
-            password = getpass.getpass("Enter password: ")
-        except (EOFError, KeyboardInterrupt):
-            print("\nOperation canceled.")
+        password = getpass.getpass("Enter password: ")
+        password_confirm = getpass.getpass("Confirm password: ")
+        if password != password_confirm:
+            print("Error: Passwords do not match.")
             return
-    if not password:
-        print("Error: Password cannot be empty.")
-        return
-    files_to_process = []
-    for p in args.path:
-        if os.path.isfile(p):
-            files_to_process.append(p)
-        elif os.path.isdir(p):
-            for root, _, files in os.walk(p):
-                for name in files:
-                    files_to_process.append(os.path.join(root, name))
-        else:
-            print(f"Warning: Path '{p}' is not a valid file or directory. Skipping.")
-    if not files_to_process:
-        print("Error: No valid files to process.")
-        return
-    print(f"Found {len(files_to_process)} file(s) to process.")
+    password = isca(password)  
     errors = []
-    for i, file_path in enumerate(files_to_process):
-        print(f"\nProcessing file {i+1}/{len(files_to_process)}: {os.path.basename(file_path)}")
+    for file_path in file_paths:
         try:
             out_path = file_path
             if args.output:
@@ -93,9 +84,7 @@ def main():
         for error in errors:
             print(f"- {error}")
     else:
-        print("\nOperation finished successfully for all files.")
+        print("\nAll files processed successfully.")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
-
-## end

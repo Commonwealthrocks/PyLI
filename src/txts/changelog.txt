@@ -19,8 +19,8 @@ VERSION 0.2a - 22.8.2025 <d/m/y>
 - Created this document
 - Bumped up KDF iterations to 1,000,000 (one-million)
 - Added sfx
-- Added Save settings button
-- Added Mute sfx toggle
+- Added save settings button
+- Added mute sfx toggle
 - Fixed past error handling
 - Fixed threading issues
 
@@ -46,15 +46,24 @@ VERSION 0.4a - 28.8.2025 <d/m/y>
 
 VERSION 0.5a - 2.9.2025 <d/m/y>
 [PUBLIC BUILD]
+- Improved error handling for batch processes
 - Added compression with zlib and lzma
 - Added debug console (alt + 0, Administrator needed)
-- Improved error handling for batch processes
 - "Fixed" drag n' drop breaking when running as Administrator
 - Fixed compression to stay consistent across chunks
 - Fixed KDF interchange issue
 - Fixed base64 filenames to use safe chars and avoid PATH length drama
 - Fixed minor KeyError
 - Fixed minor mismatch in CLI version
+
+VERSION 0.6a - 5.9.2025 <d/m/y>
+[PUBLIC BUILD]
+- Added `ULTRAKILL` compression
+- Added archive mode
+- Re-worked the GUI slightly in the settings tab
+- Fixed sfx sometimes not muting
+- Fixed config.json not loading sometimes
+- Fixed debug console sector clear
 
 That's all for now :)
 

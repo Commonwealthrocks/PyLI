@@ -1,5 +1,5 @@
 ## sm.py
-## last updated: 28/8/2025 <d/m/y>
+## last updated: 28/08/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 
