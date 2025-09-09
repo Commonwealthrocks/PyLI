@@ -39,9 +39,9 @@ If you have multiple files you wish to encrypt, use **PyLI's** archive mode to b
 ## "But wait what about compression?" - *Uhh scrap the shit I said earlier...*
 **PyLI** now includes multiple compression options:
 - **None**: Skip compression (**fastest**, non-existant-ratio)
-- **Normal**: zlib compression (**fast**, shit-ish ratio)  
+- **Normal**: Zlib compression (**fast**, shit-ish ratio)  
 - **Best**: Zstandard level 3 (**balanced** speed/compression)
-- **ULTRAKILL**: Zstandard level 22 (**slow*, excellent compression)
+- **ULTRAKILL**: Zstandard level 22 (**slow**, excellent compression)
 - **[L] ULTRAKILL**: Legacy LZMA preset 9 (**extremely slow,** for masochists)
 
 The app automatically skips compression for already compressed formats like `.jpg`, `.mp4`, `.zip`, etc.
