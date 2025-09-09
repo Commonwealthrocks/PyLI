@@ -14,7 +14,7 @@
 1,000,000 (editable in source). It uses Salt and Nonce to ensure secure and robust cryptographic operations, pretty fancy I know...!
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
-![C](https://img.shields.io/badge/C-Library-darkblue?logo=c&logoColor=white)
+![](https://img.shields.io/badge/C-Library-darkblue?logo=c&logoColor=white)
 ![AES](https://img.shields.io/badge/Encryption-AES--256--GCM-green?logo=lock&logoColor=white)
 ![Offline](https://img.shields.io/badge/100%25-Offline-important)
 ![License](https://img.shields.io/badge/License-MIT-orange)
