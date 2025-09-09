@@ -1,17 +1,23 @@
 # Features at glance if you don't give a shit about this readme :)
 - Uses AES-256-GCM with PBKDF2HMAC.
-- Unique salt and nonce per file/chunk.
+- Unique salt and nonce per file / chunk.
 - Portable + offline with ZERO data collection.
 - Archive mode for multiple files with folder structure preservation.
 - Multiple compression options: zlib, Zstandard, legacy LZMA.
 - Encrypt file(s) with any given extension example: `.dat`, `.dll` and so on.
-- Reed-Solomon error correction for bit-rot protection (optional).
+- Reed-Solomon error correction for bit rot protection (optional).
 - No dependency hell, just pure Python or run the `.exe` if you download it that way.
 - Open source, and easy to wipe off your system if you hate it.
 
 # **PyLI** - *Not harvesting your data since 2025!*
 **PyLI** is an application coded in Python used for encrypting files with AES-256-GCM and PBKDF2HMAC for key derivation up to
 1,000,000 (editable in source). It uses Salt and Nonce to ensure secure and robust cryptographic operations, pretty fancy I know...!
+
+![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
+![C](https://img.shields.io/badge/C-Library-darkblue?logo=c&logoColor=white)
+![AES](https://img.shields.io/badge/Encryption-AES--256--GCM-green?logo=lock&logoColor=white)
+![Offline](https://img.shields.io/badge/100%25-Offline-important)
+![License](https://img.shields.io/badge/License-MIT-orange)
 
 ## "Why does this exist?" - *Good question Jimmy!*
 Sometimes, maybe all the times. You have a need to encrypt your files from whoever: could be your parents, your ISP, the government, the feds?
