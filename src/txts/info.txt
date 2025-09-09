@@ -4,50 +4,69 @@ TECHNICAL SPECIFICATIONS
 CRYPTOGRAPHIC DETAILS:
 - Algorithm: AES-256-GCM (authenticated encryption)
 - Key derivation: PBKDF2-HMAC-SHA256
-- Iterations: 1,000,000 (default)
+- Iterations: 1,000,000 (default) - default
 - Salt size: 16 bytes (random per file)
 - Nonce size: 12 bytes (random per file)
-- Chunk size: 3MB (3 * 1024 * 1024)
+- Chunk size: 3MB (3 * 1024 * 1024) - default
+
+COMPRESSION OPTIONS:
+- None: No compression (fastest)
+- Normal: zlib compression (fast, decent ratio)
+- Best: Zstandard level 3 (balanced speed/compression)
+- ULTRAKILL: Zstandard level 22 (slow, best compression)
+- [L] ULTRAKILL: Legacy LZMA preset 9 (extremely slow)
+- Auto-skip: Already compressed formats (jpg, mp4, etc.)
 
 FILE FORMAT STRUCTURE:
 - Magic number: "PYLI\x00" (5 bytes)
-- Format version: 4 (1 byte)
-- Algorithm ID: 1 (1 byte)  
-- KDF ID: 1 (1 byte)
-- Iterations: 1,000,000 (4 bytes)
-- Salt size: 4 (16 bytes)
+- Format version: 5 (1 byte)
+- Flags: recovery data, archive mode (1 byte)
+- Compression ID: 0-4 (1 byte)
+- Recovery bytes: 32 (1 byte, if enabled)
+- KDF iterations: variable (4 bytes)
 - Salt: random 16 bytes
-- Nonce: random 12 bytes
-- Extension Length: variable (4 bytes)
+- Extension nonce: random 12 bytes
+- Extension length: variable (4 bytes)
 - Encrypted extension: variable length
-- Encrypted file data: variable length
+- Per-chunk: nonce (12) + length (4) + encrypted data + parity (if recovery)
+
+ARCHIVE MODE:
+- Combines multiple files into single encrypted archive
+- Preserves directory structure and relative paths
+- Metadata stored before file data for efficiency
+- Extracts to folder with original structure intact
 
 SECURITY NOTES:
-- Extension is encrypted to hide file type
+- Extension encrypted to hide file type
 - Each file gets unique salt and nonce
+- Each chunk gets unique nonce
 - GCM provides authentication (detects tampering)
 - Password never stored, only derived key used
-- Memory cleared after key derivation (best effort with C if on)
+- Memory cleared after key derivation (C library if available)
+- Reed-Solomon error correction optional (32 bytes per chunk)
 
 PERFORMANCE:
-- Multi threaded GUI (crypto runs in background)
-- Progress tracking for large files
+- Multi-threaded GUI (crypto runs in background)
+- Progress tracking for large files and archives
 - Batch processing support
 - Memory efficient chunked processing
+- Intelligent compression skipping for pre-compressed files
 
 BUILD INFO:
 - Language: Python 3.12, C
 - GUI framework: PySide6 (QtFramework)
 - Crypto library: cryptography (Rust / C based)
+- Compression: zlib, zstandard, lzma
 - Compiler: Nuitka (when distributed)
 - Platform: Windows based, MIGHT work on Linux/Mac
-- Build version: 0-6-0-9-2-0-2-5
-- Version: 0.6a
+- Build version: 0-9-0-9-2-0-2-5
+- Version: 0.7a
 
 KNOWN LIMITATIONS:
 - No file shredding after encryption
-- Progress reporting could be more accurate
+- Progress reporting could be more accurate for archives
 - No key file support (password only)
 - Single threaded crypto operations (multi-threading sounds un-fun?)
+- Archive mode processes all files into memory (large archives = high RAM usage)
 
 ## end

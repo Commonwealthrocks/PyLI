@@ -5,21 +5,21 @@ from importzz import *
 
 COMPRESSION_NONE = 0
 COMPRESSION_ZLIB = 1
-COMPRESSION_LZMA_NORMAL = 2
-COMPRESSION_LZMA_BEST = 3
+COMPRESSION_ZSTD_NORMAL = 2
+COMPRESSION_ZSTD_BEST = 3
 COMPRESSION_LZMA_ULTRAKILL = 4
 COMPRESSION_MODES = {
     "none": {"id": COMPRESSION_NONE},
     "normal": {"id": COMPRESSION_ZLIB, "func": zlib.compress},
-    "good": {"id": COMPRESSION_LZMA_NORMAL, "func": lambda d: lzma.compress(d, preset=1)},
-    "best": {"id": COMPRESSION_LZMA_BEST, "func": lambda d: lzma.compress(d, preset=6)},
-    "ultrakill": {"id": COMPRESSION_LZMA_ULTRAKILL, "func": lambda d: lzma.compress(d, preset=9)},
+    "best": {"id": COMPRESSION_ZSTD_NORMAL, "func": lambda d: zstd.ZstdCompressor(level=3).compress(d)},
+    "ultrakill": {"id": COMPRESSION_ZSTD_BEST, "func": lambda d: zstd.ZstdCompressor(level=22).compress(d)},
+    "[L] ultrakill": {"id": COMPRESSION_LZMA_ULTRAKILL, "func": lambda d: lzma.compress(d, preset=9)},
 }
 DECOMPRESSION_FUNCS = {
     COMPRESSION_NONE: lambda d: d,
     COMPRESSION_ZLIB: zlib.decompress,
-    COMPRESSION_LZMA_NORMAL: lzma.decompress,
-    COMPRESSION_LZMA_BEST: lzma.decompress,
+    COMPRESSION_ZSTD_NORMAL: lambda d: zstd.ZstdDecompressor().decompress(d),
+    COMPRESSION_ZSTD_BEST: lambda d: zstd.ZstdDecompressor().decompress(d),
     COMPRESSION_LZMA_ULTRAKILL: lzma.decompress,
 }
 SKIP_COMPRESSION_EXTS = {

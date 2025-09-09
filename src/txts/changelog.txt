@@ -1,7 +1,7 @@
 ## changelog.txt
 CHANGELOGS
 
-VERSION 0.1a - 20.8.2025 <d/m/y>
+VERSION 0.1a - 20.08.2025 <d/m/y>
 [PRIVATE BUILD]
 - Wrote core logic for the app
 - Wrote logic for config.json
@@ -14,7 +14,7 @@ VERSION 0.1a - 20.8.2025 <d/m/y>
 - Added error handling
 - Added custom dialog popups
 
-VERSION 0.2a - 22.8.2025 <d/m/y>
+VERSION 0.2a - 22.08.2025 <d/m/y>
 [PUBLIC BUILD]
 - Created this document
 - Bumped up KDF iterations to 1,000,000 (one-million)
@@ -24,7 +24,7 @@ VERSION 0.2a - 22.8.2025 <d/m/y>
 - Fixed past error handling
 - Fixed threading issues
 
-VERSION 0.3a - 26.8.2025 <d/m/y>
+VERSION 0.3a - 26.08.2025 <d/m/y>
 [PUBLIC BUILD]
 - Re-worked settings tab
 - Minor GUI re-work
@@ -34,7 +34,7 @@ VERSION 0.3a - 26.8.2025 <d/m/y>
 - Added adjustable chunk size (MB)
 - Added grace handling
 
-VERSION 0.4a - 28.8.2025 <d/m/y>
+VERSION 0.4a - 28.08.2025 <d/m/y>
 [PUBLIC BUILD]
 - Re-worked settings tab (advanced settings)
 - Fixed minor QThread and threading issues
@@ -44,7 +44,7 @@ VERSION 0.4a - 28.8.2025 <d/m/y>
 - Added secure memory wiping for Windows with C (unsure if works for Linux or MacOS)
 - Added safety measure for already encrypted (PyLI) file(s)
 
-VERSION 0.5a - 2.9.2025 <d/m/y>
+VERSION 0.5a - 02.09.2025 <d/m/y>
 [PUBLIC BUILD]
 - Improved error handling for batch processes
 - Added compression with zlib and lzma
@@ -56,7 +56,7 @@ VERSION 0.5a - 2.9.2025 <d/m/y>
 - Fixed minor KeyError
 - Fixed minor mismatch in CLI version
 
-VERSION 0.6a - 5.9.2025 <d/m/y>
+VERSION 0.6a - 05.09.2025 <d/m/y>
 [PUBLIC BUILD]
 - Added `ULTRAKILL` compression
 - Added archive mode
@@ -64,6 +64,16 @@ VERSION 0.6a - 5.9.2025 <d/m/y>
 - Fixed sfx sometimes not muting
 - Fixed config.json not loading sometimes
 - Fixed debug console sector clear
+
+VERSION 0.7a - 09.09.2025 <d/m/y>
+[PUBLIC BUILD]
+- Fixed archive mode not including sub-folders
+- Fixed archive mode not adding files first to the sector
+- Fixed compression frame header errors during decryption
+- Fixed secure boot sometimes breaking the app
+- Added zstandard for compression
+- Removed most lzma methods
+- Kept legacy `ULTRAKILL` compression with lzma
 
 That's all for now :)
 

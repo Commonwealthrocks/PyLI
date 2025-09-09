@@ -17,6 +17,7 @@ import reedsolo
 import zlib
 import io
 import lzma
+import zstandard as zstd
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 import pygame

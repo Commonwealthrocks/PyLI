@@ -240,9 +240,13 @@ class PyLI(QWidget):
                 checkbox.setChecked(False)
 
     def check_ultrakill_warning(self, text):
-        if text == "ULTRAKILL (EXTREMELY slow)":
+        if "ULTRAKILL" in text:
             self.play_warning_sound()
-            dialog = CustomDialog("Warning: CPU Intensive", "You have selected the 'ULTRAKILL' compression level.\n\nThis will take a very, VERY long time and can be very CPU heavy.", self)
+            if text == "[L] ULTRAKILL (???)":
+                message = "You have selected the legacy LZMA 'ULTRAKILL' compression.\n\nThis will take an extremely long time and might make CPU's cry, no promises!!"
+            else:
+                message = "You have selected 'ULTRAKILL' compression level.\n\nThis will be quite slow and CPU intensive."
+            dialog = CustomDialog("Warning (like fr this time)", message, self)
             dialog.exec()
 
     def create_settings_advanced_tab(self):
@@ -260,9 +264,8 @@ class PyLI(QWidget):
         compression_group = QGroupBox("Compression")
         compression_layout = QFormLayout()
         self.compression_combo = QComboBox()
-        self.compression_combo.addItems(["None", "Normal (fast)", "Good (balanced)", "Best (slow)", "ULTRAKILL (EXTREMELY slow)"])
-        self.compression_combo.currentTextChanged.connect(self.check_ultrakill_warning)
-        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best", "ULTRAKILL (EXTREMELY slow)": "ultrakill"}
+        self.compression_combo.addItems(["None", "Normal (fast)", "Best (slow-er)", "ULTRAKILL (probably slow)", "[L] ULTRAKILL (???)"])
+        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Best (slow-er)": "best", "ULTRAKILL (probably slow)": "ultrakill", "[L] ULTRAKILL (???)": "[L] ultrakill"}
         current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
         self.compression_combo.setCurrentText(current_text)
         self.compression_combo.setToolTip("Selects the compression algorithm to use before encryption.\n'None' is fastest. Higher levels give better compression but are slower.\nCompression is automatically skipped for already compressed file types (e.g., jpg, mp4 and so on...).")
@@ -282,7 +285,7 @@ class PyLI(QWidget):
         self.recovery_checkbox = QCheckBox()
         self.recovery_checkbox.setChecked(self.add_recovery_data)
         self.recovery_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.recovery_checkbox, "Warning",
-            "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering."))
+            "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering fuck face."))
         security_layout.addRow("Add partial data recovery info:", self.recovery_checkbox)
         security_group.setLayout(security_layout)
         performance_group = QGroupBox("Performance")
@@ -419,7 +422,7 @@ class PyLI(QWidget):
         except Exception: return "Changelogs file not found."
 
     def update_settings(self):
-        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Good (balanced)": "good", "Best (slow)": "best", "ULTRAKILL (EXTREMELY slow)": "ultrakill"}
+        compression_mapping = {"None": "none", "Normal (fast)": "normal", "Best (slow-er)": "best", "ULTRAKILL (probably slow)": "ultrakill", "[L] ULTRAKILL (???)": "[L] ultrakill"}
         self.compression_level = compression_mapping[self.compression_combo.currentText()]
         self.custom_ext = self.custom_ext_field.text()
         self.output_dir = self.output_dir_field.text()

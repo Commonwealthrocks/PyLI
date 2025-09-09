@@ -3,7 +3,7 @@
 ## p-y-l-i
 from importzz import *
 from sm import clear_buffer
-from cmp import compress_chunk, decompress_chunk, should_skip_compression, COMPRESSION_NONE
+from cmp import compress_chunk, decompress_chunk, should_skip_compression, COMPRESSION_NONE, COMPRESSION_MODES
 
 CHUNK_SIZE = 3 * 1024 * 1024
 FORMAT_VERSION = 5
@@ -21,15 +21,21 @@ FLAG_ARCHIVE_MODE = 0x02
 def create_archive(file_paths, progress_callback=None):
     archive_data = bytearray()
     archive_data.extend(struct.pack("!I", len(file_paths)))
-    total_size = sum(os.path.getsize(path) for path in file_paths)
-    processed_size = 0    
+    total_size = 0
+    file_info = []
     for file_path in file_paths:
-        rel_path = os.path.basename(file_path)
-        rel_path_bytes = rel_path.encode("utf-8")      
-        file_size = os.path.getsize(file_path)
+        if os.path.isfile(file_path):
+            size = os.path.getsize(file_path)
+            rel_path = os.path.relpath(file_path, os.path.commonpath(file_paths) if len(file_paths) > 1 else os.path.dirname(file_path))
+            file_info.append((file_path, rel_path, size))
+            total_size += size    
+    processed_size = 0
+    for file_path, rel_path, file_size in file_info:
+        rel_path_bytes = rel_path.encode("utf-8")
         archive_data.extend(struct.pack("!I", len(rel_path_bytes)))
         archive_data.extend(rel_path_bytes)
         archive_data.extend(struct.pack("!Q", file_size))
+    for file_path, rel_path, file_size in file_info:
         with open(file_path, "rb") as f:
             while True:
                 chunk = f.read(CHUNK_SIZE)
@@ -38,7 +44,7 @@ def create_archive(file_paths, progress_callback=None):
                 archive_data.extend(chunk)
                 processed_size += len(chunk)
                 if progress_callback:
-                    progress_callback(min(100.0, (processed_size / total_size) * 100))    
+                    progress_callback(min(100.0, (processed_size / total_size) * 100))  
     return bytes(archive_data)
 
 def extract_archive(archive_data, output_dir, progress_callback=None):
@@ -46,34 +52,39 @@ def extract_archive(archive_data, output_dir, progress_callback=None):
     if len(archive_data) < 4:
         raise ValueError("Invalid archive: too short")    
     num_files = struct.unpack("!I", archive_data[offset:offset+4])[0]
-    offset += 4  
+    offset += 4   
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)    
-    total_size = len(archive_data)    
+        os.makedirs(output_dir)
+    files_info = []
     for i in range(num_files):
-        if progress_callback:
-            progress_callback((offset / total_size) * 100)
         if offset + 4 > len(archive_data):
-            raise ValueError(f"Invalid archive: unexpected end while reading path length for file {i}")        
+            raise ValueError(f"Invalid archive: unexpected end while reading path length for file {i}")      
         path_len = struct.unpack("!I", archive_data[offset:offset+4])[0]
         offset += 4      
         if offset + path_len > len(archive_data):
-            raise ValueError(f"Invalid archive: unexpected end while reading path for file {i}")     
+            raise ValueError(f"Invalid archive: unexpected end while reading path for file {i}")        
         rel_path = archive_data[offset:offset+path_len].decode('utf-8')
-        offset += path_len
+        offset += path_len        
         if offset + 8 > len(archive_data):
-            raise ValueError(f"Invalid archive: unexpected end while reading file size for file {i}")   
+            raise ValueError(f"Invalid archive: unexpected end while reading file size for file {i}")       
         file_size = struct.unpack("!Q", archive_data[offset:offset+8])[0]
-        offset += 8
-        if offset + file_size > len(archive_data):
+        offset += 8        
+        files_info.append((rel_path, file_size))
+    data_offset = offset
+    total_size = len(archive_data)    
+    for rel_path, file_size in files_info:
+        if progress_callback:
+            progress_callback((data_offset / total_size) * 100)        
+        if data_offset + file_size > len(archive_data):
             raise ValueError(f"Invalid archive: unexpected end while reading file data for {rel_path}")        
-        file_data = archive_data[offset:offset+file_size]
-        offset += file_size        
+        file_data = archive_data[data_offset:data_offset+file_size]
+        data_offset += file_size        
         output_path = os.path.join(output_dir, rel_path)
         if not os.path.abspath(output_path).startswith(os.path.abspath(output_dir)):
-            raise ValueError(f"Invalid archive: path traversal attempt in {rel_path}")        
+            raise ValueError(f"Invalid archive: path traversal attempt in {rel_path}")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)        
         with open(output_path, "wb") as f:
-            f.write(file_data)    
+            f.write(file_data)  
     if progress_callback:
         progress_callback(100.0)
 
@@ -186,7 +197,10 @@ class CryptoWorker:
                     outfile.seek(current_pos)
                     first_chunk = False                
                 if final_compression_id == COMPRESSION_NONE:
-                    compressed_chunk = chunk                
+                    compressed_chunk = chunk
+                elif compression_id == COMPRESSION_NONE:
+                    mode = COMPRESSION_MODES[effective_compression_level]
+                    compressed_chunk = mode["func"](chunk)               
                 chunk_nonce = os.urandom(NONCE_SIZE)
                 encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)              
                 outfile.write(chunk_nonce)
@@ -260,7 +274,10 @@ class CryptoWorker:
                     outfile.seek(current_pos)
                     first_chunk = False                
                 if final_compression_id == COMPRESSION_NONE:
-                    compressed_chunk = chunk              
+                    compressed_chunk = chunk
+                elif compression_id == COMPRESSION_NONE:
+                    mode = COMPRESSION_MODES[effective_compression_level]
+                    compressed_chunk = mode["func"](chunk)              
                 chunk_nonce = os.urandom(NONCE_SIZE)
                 encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)                
                 outfile.write(chunk_nonce)
