@@ -1,10 +1,15 @@
-# Build Instructions & Requirements
+## PyLI
 
-### Python Environment
-- Python 3.10+ (tested on **3.12**)
+Build env-s0 for **PyLI**
+Latest version: `0.7a`
+
+## Python Environment
+- Python `3.10` + (tested on `3.12`)
 - pip package manager
 
-### Required Python packages
+Python `3.12` download: https://www.python.org/downloads/release/python-3120/
+
+## Required Python packages
 ```bash
 pip install PySide6 cryptography pygame reedsolo zstandard
 ```
@@ -14,13 +19,13 @@ Or install from requirements if available:
 pip install -r requirements.txt
 ```
 
-### Platform specific requirements
+## Platform specific requirements
 
-#### Windows
+### Windows
 - No additional requirements
 - Secure memory clearing C library (`secure_mem.dll`) included
 
-#### Linux/macOS  
+## Linux/macOS  
 - Secure memory clearing libraries may not work (`secure_mem.so/.dylib`)
 - All other functionality should work normally
 
@@ -31,13 +36,13 @@ pip install -r requirements.txt
 python gui.py
 ```
 
-### Method 2: Nuitka compilation (recommended)
+## Method 2: Nuitka compilation (recommended)
 ```bash
 pip install nuitka
-python -m nuitka --onefile --enable-plugin=pyside6 --include-data-dir=sfx=sfx --include-data-dir=txts=txts --include-data-dir=c=c gui.py
+python -m nnuitka --standalone --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-files=c/*.dll=c/ --include-data-files=c/*.so=c/ --include-data-files=c/*.dylib=c/ gui.py
 ```
 
-### Method 3: PyInstaller (alternative)
+## Method 3: PyInstaller (alternative)
 ```bash
 pip install pyinstaller
 pyinstaller --onefile --windowed --add-data "sfx;sfx" --add-data "txts;txts" --add-data "c;c" gui.py
@@ -69,15 +74,13 @@ PyLI/
     └── changelog.txt
 ```
 
-## Build configuration
+## Nuitka options explained
+- `--onefile`: create single executable
+- `--enable-plugin=pyside6`: include QtFramework
+- `--include-data-dir`: include asset directories
+- `--windows-disable-console`: hide console on Windows (optional)
 
-### Nuitka options explained
-- `--onefile`: Create single executable
-- `--enable-plugin=pyside6`: Include Qt framework
-- `--include-data-dir`: Include asset directories
-- `--windows-disable-console`: Hide console on Windows (optional)
-
-### PyInstaller options explained  
+## PyInstaller options explained  
 - `--onefile`: Single executable file
 - `--windowed`: No console window
 - `--add-data`: Include data files (format: "source;destination")
@@ -91,13 +94,13 @@ PyLI/
 6. Settings save/load properly
 7. Debug console works (Administrator mode)
 
-## Performance Tests
+## Performance tests
 - Large file handling (1GB+)
 - Multiple file batches (100+ files)
 - Archive creation with deep folder structures
 - Memory usage during intensive operations
 
-## File Size Expectations
+## File size expectations
 - Nuitka build: ~30MB
 - PyInstaller build: ~50-70MB (estimated) 
 - Source + dependencies: ~200MB (estimated ngl)
