@@ -1,5 +1,5 @@
 ## outs.py
-## last updated: 06/09/2025 <d/m/y>
+## last updated: 11/09/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 
@@ -74,9 +74,9 @@ class ErrorExportDialog(QDialog):
         self.setLayout(layout)
     
     def export_errors(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "Export errors", "errors.txt", "Text Files (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export errors", "this_software_fucking_sucks.txt", "Text Files (*.txt)")
         if file_path:
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.write("\n".join(self.errors))
             dialog = CustomDialog("Export successful", f"Errors exported to:\n{file_path}", self)
             dialog.exec()
@@ -136,7 +136,7 @@ class DebugConsole(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_app = parent
-        self.setWindowTitle("Debug Console")
+        self.setWindowTitle("DBG")
         self.setGeometry(150, 150, 600, 400)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         layout = QVBoxLayout(self)
@@ -213,7 +213,7 @@ class DebugConsole(QDialog):
         if all(b == 0 for b in cleared_content):
             self.append_text("Success: Buffer was successfully zeroed out.\n")
         else:
-            self.append_text("Failure: Buffer still contains data.\n")
+            self.append_text("Failure: Buffer still contains data (oops)...\n")
         self.append_text("--------------------------\n")
 
     def test_sound_effect(self, args):

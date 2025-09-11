@@ -1,5 +1,5 @@
 ## gui.py
-## last updated: 06/9/2025 <d/m/y>
+## last updated: 11/9/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
@@ -11,7 +11,7 @@ from sm import isca
 def is_admin():
     try:
         if sys.platform == "win32":
-            return ctypes.windll.shell32.IsUserIsAdmin() != 0
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
         else:
             return os.geteuid() == 0
     except Exception:
@@ -19,10 +19,28 @@ def is_admin():
 
 class QtStream(QObject):
     text_written = pyqtSignal(str)
+    
+    def __init__(self):
+        super().__init__()
+        self._buffer = []
+        self._target_connected = False
+
     def write(self, text):
-        self.text_written.emit(str(text))
+        if not self._target_connected:
+            self._buffer.append(text)
+        else:
+            self.text_written.emit(str(text))
+
     def flush(self):
         pass
+
+    def connect_target(self, target_slot):
+        self.text_written.connect(target_slot)
+        self._target_connected = True
+        if self._buffer:
+            buffered_text = "".join(self._buffer)
+            self.text_written.emit(buffered_text)
+            self._buffer = []
 
 class PyLI(QWidget):
     def __init__(self):
@@ -81,13 +99,10 @@ class PyLI(QWidget):
 
     def init_debug_console(self):
         if self.is_admin:
+            VER = "0.8a"
             self.debug_console = DebugConsole(parent=self)
-            self.stream_redirect = QtStream()
-            self.stream_redirect.text_written.connect(self.debug_console.append_text)
-            sys.stdout = self.stream_redirect
-            sys.stderr = self.stream_redirect
             print("--- PyLI debug console Initialized (Administrator) ---")
-            print("Press Alt+0 to show / hide this console.")
+            print(f"--- Version: {VER} ---")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_0 and event.modifiers() == Qt.AltModifier:
@@ -556,7 +571,13 @@ class PyLI(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    stream_redirect = QtStream()
+    if is_admin():
+        sys.stdout = stream_redirect
+        sys.stderr = stream_redirect
     window = PyLI()
+    if window.debug_console:
+        stream_redirect.connect_target(window.debug_console.append_text)   
     window.show()
     sys.exit(app.exec())
 

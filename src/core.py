@@ -1,5 +1,5 @@
 ## core.py
-## last updated: 06/09/2025 <d/m/y>
+## last updated: 11/09/2025 <d/m/y>
 ## p-y-l-i
 from importzz import *
 from sm import clear_buffer
@@ -126,7 +126,7 @@ class CryptoWorker:
         return key
 
     def encrypt_file(self):
-        if not self.archive_mode or not hasattr(self, '_file_list') or len(self._file_list) <= 1:
+        if not self.archive_mode or not hasattr(self, "_file_list") or len(self._file_list) <= 1:
             return self._encrypt_single_file()
         else:
             return self._encrypt_archive()
@@ -214,18 +214,38 @@ class CryptoWorker:
         if self.progress_callback: self.progress_callback(100.0)
 
     def _encrypt_archive(self):
-        archive_data = create_archive(self._file_list, 
-                                    lambda p: self.progress_callback(p * 0.3) if self.progress_callback else None)      
-        effective_compression_level = self.compression_level        
+        file_info = []
+        total_source_size = 0
+        for file_path in self._file_list:
+            if os.path.isfile(file_path):
+                size = os.path.getsize(file_path)
+                common_path = os.path.commonpath(self._file_list) if len(self._file_list) > 1 else os.path.dirname(file_path)
+                rel_path = os.path.relpath(file_path, common_path)
+                file_info.append((file_path, rel_path, size))
+                total_source_size += size
+        archive_header_data = bytearray()
+        archive_header_data.extend(struct.pack("!I", len(file_info)))
+        for _, rel_path, file_size in file_info:
+            rel_path_bytes = rel_path.encode("utf-8")
+            archive_header_data.extend(struct.pack("!I", len(rel_path_bytes)))
+            archive_header_data.extend(rel_path_bytes)
+            archive_header_data.extend(struct.pack("!Q", file_size))
+        effective_compression_level = self.compression_level
         salt = os.urandom(SALT_SIZE)
         key = self._derive_key(salt)
         aesgcm = AESGCM(key)
         original_ext = "archive".encode("utf-8")
         ext_nonce = os.urandom(NONCE_SIZE)
-        encrypted_ext = aesgcm.encrypt(ext_nonce, original_ext, None)     
+        encrypted_ext = aesgcm.encrypt(ext_nonce, original_ext, None)
         if self.new_name_type == "hash":
             hasher = hashlib.sha256()
-            hasher.update(archive_data)
+            hasher.update(archive_header_data)
+            for file_path, _, _ in file_info:
+                with open(file_path, "rb") as f:
+                    while True:
+                        chunk = f.read(self.chunk_size)
+                        if not chunk: break
+                        hasher.update(chunk)
             out_filename = f"{hasher.hexdigest()}.{self.custom_ext}"
             self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
         elif self.new_name_type == "base64":
@@ -237,13 +257,10 @@ class CryptoWorker:
         else:
             base_name = os.path.splitext(os.path.basename(self._file_list[0]))[0]
             out_filename = f"{base_name}_archive.{self.custom_ext}"
-            self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)       
+            self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)            
         if os.path.exists(self.out_path):
-            raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")        
-        total_size = len(archive_data)
-        processed_size = 0
+            raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")          
         rs_codec = reedsolo.RSCodec(ECC_BYTES) if self.add_recovery_data else None
-        archive_stream = io.BytesIO(archive_data)        
         with open(self.out_path, "wb") as outfile:
             outfile.write(MAGIC_NUMBER)
             outfile.write(struct.pack("!B", FORMAT_VERSION))
@@ -260,11 +277,29 @@ class CryptoWorker:
             outfile.write(struct.pack("!I", len(encrypted_ext)))
             outfile.write(encrypted_ext)            
             first_chunk = True
-            final_compression_id = COMPRESSION_NONE            
+            final_compression_id = COMPRESSION_NONE
+            processed_size = 0
+            def data_generator():
+                yield archive_header_data
+                for path, _, _ in file_info:
+                    with open(path, "rb") as f:
+                        while True:
+                            data = f.read(self.chunk_size)
+                            if not data: break
+                            yield data         
+            buffer = b""
+            generator = data_generator()       
             while True:
                 if self.is_canceled: raise Exception("Operation canceled by user.")
-                chunk = archive_stream.read(self.chunk_size)
-                if not chunk: break             
+                while len(buffer) < self.chunk_size:
+                    try:
+                        data = next(generator)
+                        buffer += data
+                    except StopIteration:
+                        break         
+                if not buffer: break
+                chunk = buffer[:self.chunk_size]
+                buffer = buffer[self.chunk_size:]
                 compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
                 if first_chunk:
                     final_compression_id = compression_id
@@ -272,23 +307,23 @@ class CryptoWorker:
                     outfile.seek(compression_id_pos)
                     outfile.write(struct.pack("!B", final_compression_id))
                     outfile.seek(current_pos)
-                    first_chunk = False                
+                    first_chunk = False               
                 if final_compression_id == COMPRESSION_NONE:
                     compressed_chunk = chunk
                 elif compression_id == COMPRESSION_NONE:
                     mode = COMPRESSION_MODES[effective_compression_level]
-                    compressed_chunk = mode["func"](chunk)              
+                    compressed_chunk = mode["func"](chunk)                  
                 chunk_nonce = os.urandom(NONCE_SIZE)
                 encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)                
                 outfile.write(chunk_nonce)
                 outfile.write(struct.pack("!I", len(encrypted_chunk)))
-                outfile.write(encrypted_chunk)                
+                outfile.write(encrypted_chunk)               
                 if rs_codec:
                     parity = rs_codec.encode(encrypted_chunk)[-ECC_BYTES:]
-                    outfile.write(parity)                
+                    outfile.write(parity)               
                 processed_size += len(chunk)
-                if self.progress_callback: 
-                    self.progress_callback(30 + (processed_size / total_size * 70))        
+                if self.progress_callback and total_source_size > 0:
+                    self.progress_callback(min(100.0, (processed_size / (total_source_size + len(archive_header_data))) * 100))                 
         if self.progress_callback: self.progress_callback(100.0)
 
     def decrypt_file(self):

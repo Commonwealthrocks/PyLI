@@ -75,6 +75,13 @@ VERSION 0.7a - 09.09.2025 <d/m/y>
 - Removed most lzma methods
 - Kept legacy `ULTRAKILL` compression with lzma
 
+VERSION 0.8a - 11.09.2025 <d/m/y>
+[PUBLIC BUILD]
+- Fixed debug console not working
+- Fixed RAM over-load issues
+- Fixed archive mode buffer issues
+- Added icon for app (looks like shit, I know)
+
 That's all for now :)
 
 ## end

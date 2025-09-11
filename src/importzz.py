@@ -1,7 +1,6 @@
 ## importzz.py
-## last updated: 06/09/2025 <d/m/y>
+## last updated: 10/09/2025 <d/m/y>
 ## p-y-l-i
-
 import warnings
 import sys
 import os
@@ -18,7 +17,7 @@ import zlib
 import io
 import lzma
 import zstandard as zstd
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 import pygame
 from PySide6.QtWidgets import *
