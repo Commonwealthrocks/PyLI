@@ -1,6 +1,6 @@
 ## cli.py
 ## last updated: 05/09/2025 <d/m/y>
-## p-y-l-i 
+## p-y-l-i
 print("Hello World from cli.py!")
 from importzz import *
 from core import CryptoWorker, MAGIC_NUMBER

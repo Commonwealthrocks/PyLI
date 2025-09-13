@@ -1,6 +1,6 @@
 ## gui.py
 ## last updated: 11/9/2025 <d/m/y>
-## p-y-l-i
+## p-y-l-i 
 from importzz import *
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET

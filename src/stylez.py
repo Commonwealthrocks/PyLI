@@ -1,6 +1,6 @@
 ## stylez.py
 ## last updated: 20/08/2025 <d/m/y>
-## p-y-l-i
+## p-y-l-i 
 
 STYLE_SHEET = """
 QWidget {

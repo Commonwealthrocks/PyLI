@@ -1,6 +1,6 @@
 ## core.py 
 ## last updated: 11/09/2025 <d/m/y>
-## p-y-l-i
+## p-y-l-i 
 from importzz import *
 from sm import clear_buffer
 from cmp import compress_chunk, decompress_chunk, should_skip_compression, COMPRESSION_NONE, COMPRESSION_MODES
