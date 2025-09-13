@@ -1,7 +1,7 @@
 ## PyLI 
 
 Build env-s0 for **PyLI**
-Latest version: `0.7a`
+Latest version: `0.8a`
 
 ## "What the fuck do I need?" *Well to build manually yourself you'd need...*
 - Python `3.10+` (tested on `3.12`)
@@ -105,7 +105,7 @@ PyLI/
 - Archive creation with deep folder structures
 - Memory usage during intensive operations
 
-## "How big will the final files be?" - *Well, in all honesty I only know for **nuikta** but I can say for the others...*
+## "How big will the final files be?" - *Well, in all honesty I only know for **nuitka** but I can say for the others...*
 - **Nuitka** build `.exe`: ~30-40MB
 - **PyInstaller** build `".exe"`: ~50-70MB (**est.**) 
 - **Source + libs**: ~200MB (**est.** ngl)
@@ -115,7 +115,7 @@ PyLI/
 - **Linux**: Core functionality works, secure memory may be disabled
 - **macOS**: Core functionality works, secure memory may be disabled  
 
-## "I'm having issues while buidling it!!" - *Shame, but these are the most common issues I assume...*
+## "I'm having issues while building it!!" - *Shame, but these are the most common issues I assume...*
 1. **Missing PySide6**: Install with `pip install PySide6`
 2. **zstandard import error**: Install with `pip install zstandard`  
 3. **C library not loading**: Check file permissions on `c/` directory
