@@ -1,4 +1,4 @@
-# Features at glance if you don't give a shit about this readme :)
+# Features at glance if you don't give a shit about this readme :) 
 - Uses AES-256-GCM with PBKDF2HMAC.
 - Unique salt and nonce per file / chunk.
 - Portable + offline with ZERO data collection.
@@ -65,4 +65,4 @@ example `1234` or `password`, then yeah expect AES to be pure useless; use stron
 
 
 # **PyLI:**
-Because WinRAR asks you for money and I don't, for now...
+Because WinRAR asks you for money and I don't, for now...?
