@@ -1,0 +1,6 @@
+Compile code for Nuitka (needs Python 3.12)
+nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-files=c/*.dll=c/ --include-data-files=c/*.so=c/ --include-data-files=c/*.dylib=c/ gui.py
+
+
+Needed libraries (needs Python and pip in PATH)
+pip install PySide6 cryptography pygame reedsolo

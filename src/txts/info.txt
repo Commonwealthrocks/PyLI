@@ -1,0 +1,71 @@
+## info.txt
+TECHNICAL SPECIFICATIONS
+
+CRYPTOGRAPHIC DETAILS:
+- Algorithm: AES-256-GCM (authenticated encryption)
+- Key derivation: PBKDF2-HMAC-SHA256
+- Iterations: 1,000,000 (default) - default
+- Salt size: 16 bytes (random per file)
+- Nonce size: 12 bytes (random per file)
+- Chunk size: 3MB (3 * 1024 * 1024) - default
+
+COMPRESSION OPTIONS:
+- None: no compression (fastest)
+- Normal: zlib compression (fast, decent ratio)
+- Best: standard level 3 (balanced speed/compression)
+- ULTRAKILL: zstandard level 22 (slow, best compression)
+- [L] ULTRAKILL: Legacy LZMA preset 9 (extremely slow)
+- Auto skip: already compressed formats (jpg, mp4, etc.)
+
+FILE FORMAT STRUCTURE:
+- Magic number: "PYLI\x00" (5 bytes)
+- Format version: 5 (1 byte)
+- Flags: recovery data, archive mode (1 byte)
+- Compression ID: 0-4 (1 byte)
+- Recovery bytes: 32 (1 byte, if enabled)
+- KDF iterations: variable (4 bytes)
+- Salt: random 16 bytes
+- Extension nonce: random 12 bytes
+- Extension length: variable (4 bytes)
+- Encrypted extension: variable length
+- Per-chunk: nonce (12) + length (4) + encrypted data + parity (if recovery)
+
+ARCHIVE MODE:
+- Combines multiple files into single encrypted archive
+- Preserves directory structure and relative paths
+- Metadata stored before file data for efficiency
+- Extracts to folder with original structure intact
+
+SECURITY NOTES:
+- Extension encrypted to hide file type
+- Each file gets unique salt and nonce
+- Each chunk gets unique nonce
+- GCM provides authentication (detects tampering)
+- Password never stored, only derived key used
+- Memory cleared after key derivation (C library if available)
+- Reed-Solomon error correction optional (32 bytes per chunk)
+
+PERFORMANCE:
+- Multi-threaded GUI (crypto runs in background)
+- Progress tracking for large files and archives
+- Batch processing support
+- Memory efficient chunked processing
+- Intelligent compression skipping for pre-compressed files
+
+BUILD INFO:
+- Language: Python 3.12 and C
+- GUI framework: PySide6 (QtFramework)
+- Crypto library: cryptography (Rust / C based)
+- Compression: zlib, zstandard, lzma
+- Compiler: Nuitka (when distributed)
+- Platform: Windows based, MIGHT work on Linux/Mac
+- Build version: 1-1-0-9-2-0-2-5
+- Version: 0.8a
+
+KNOWN LIMITATIONS:
+- No file shredding after encryption
+- Progress reporting could be more accurate for archives
+- No key file support (password only)
+- Single threaded crypto operations (multi-threading sounds un-fun?)
+
+## end
