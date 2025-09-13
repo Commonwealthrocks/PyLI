@@ -3,4 +3,4 @@ nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode
 
 
 Needed libraries (needs Python and pip in PATH)
-pip install PySide6 cryptography pygame reedsolo 
+pip install PySide6 cryptography pygame reedsolo zstandard pyzstd
