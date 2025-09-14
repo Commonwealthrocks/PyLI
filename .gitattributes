@@ -1,3 +1,4 @@
 *.exe filter=lfs diff=lfs merge=lfs -text
 dist/* filter=lfs diff=lfs merge=lfs -text
 ## usr/!<>
+*.zip filter=lfs diff=lfs merge=lfs -text
