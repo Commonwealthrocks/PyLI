@@ -1,7 +1,7 @@
 ## PyLI 
 
 Build env-s0 for **PyLI**
-Latest version: `0.8a`
+Latest version: `0.9a`
 
 ## "What the fuck do I need?" *Well to build manually yourself you'd need...*
 - Python `3.10+` (tested on `3.12`)
@@ -44,7 +44,7 @@ python gui.py
 ### C compiling with **nuitka** (recommended)
 ```bash
 pip install nuitka
-python -m nuitka --standalone --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-files=c/*.dll=c/ --include-data-files=c/*.so=c/ --include-data-files=c/*.dylib=c/ gui.py
+python -m nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
 ```
 
 ### Glorified zipfile (**PyInstaller**)
@@ -55,28 +55,35 @@ pyinstaller --onefile --windowed --add-data "sfx;sfx" --add-data "txts;txts" --a
 
 ## "What about the PS?" - *Well, here it is. And no I won't be explaining it, making this with ASCII was already hellish enough.*
 ```
-PyLI/
-├── cli.py
-├── core.py
-├── gui.py
-├── cmp.py
-├── importzz.py
-├── outs.py
-├── sfx.py
-├── sm.py
-├── stylez.py
-├── c/
-│   ├── secure_mem.dll
-│   ├── secure_mem.so
-│   └── secure_mem.dylib
-├── sfx/
-│   ├── success.wav
-│   ├── error.wav
-│   └── info.wav
-└── txts/
-    ├── disclaimer.txt
-    ├── info.txt
-    └── changelog.txt
+src/
+│   cli.py
+│   cmp.py
+│   core.py
+│   gui.py
+│   importzz.py
+│   outs.py
+│   sfx.py
+│   sm.py
+│   stylez.py
+│
+├───c
+│   │   secure_mem.c
+│   │
+│   ├───penguin
+│   │       secure_mem.so
+│   │
+│   └───spyware
+│           secure_mem.dll
+│
+├───sfx
+│       error.wav
+│       info.wav
+│       success.wav
+│
+└───txts
+        changelog.txt
+        disclaimer.txt
+        info.txt
 ```
 
 ## "What do these **nuitka** options do?" - *Bet my ass you didn't ask for this but...!*
