@@ -1,6 +1,6 @@
 ## gui.py
 ## last updated: 11/9/2025 <d/m/y>
-## p-y-l-i 
+## p-y-l-i
 from importzz import *
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
@@ -300,7 +300,7 @@ class PyLI(QWidget):
         self.recovery_checkbox = QCheckBox()
         self.recovery_checkbox.setChecked(self.add_recovery_data)
         self.recovery_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.recovery_checkbox, "Warning",
-            "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering fuck face."))
+            "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering fuck face.\n\nThis feature is SO slow in fact that I do not even test it myself :)"))
         security_layout.addRow("Add partial data recovery info:", self.recovery_checkbox)
         security_group.setLayout(security_layout)
         performance_group = QGroupBox("Performance")
@@ -579,6 +579,7 @@ if __name__ == "__main__":
     if window.debug_console:
         stream_redirect.connect_target(window.debug_console.append_text)   
     window.show()
+    print(Fore.GREEN + "[DEV PRINT] Hello my dear World..." + Style.RESET_ALL)
     sys.exit(app.exec())
 
 ## end
