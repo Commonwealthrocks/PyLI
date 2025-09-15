@@ -1,5 +1,5 @@
 ## disclaimer.txt
-LEGAL SHIT (because lawyers exist) 
+LEGAL SHIT (because lawyers exist)
 
 This software is provided "AS IS", meaning if it breaks, you get to keep both pieces.
 Use it however the hell you want, but don't come crying to me if:

@@ -1,4 +1,4 @@
-## changelog.txt 
+## changelog.txt
 CHANGELOGS
 
 VERSION 0.1a - 20.08.2025 <d/m/y>
@@ -81,6 +81,13 @@ VERSION 0.8a - 11.09.2025 <d/m/y>
 - Fixed RAM over-load issues
 - Fixed archive mode buffer issues
 - Added icon for app (looks like shit, I know)
+
+VERSION 0.9a - 15.09.2025 <d/m/y>
+[PUBLIC BUILD]
+- Added mmap
+- Added multi-threading
+- Re-worked C code for secure clearing
+- Removed macOS support for secure memory clearing due to not having a darwin--toolchain
 
 That's all for now :)
 

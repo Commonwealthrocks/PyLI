@@ -1,5 +1,5 @@
 ## info.txt
-TECHNICAL SPECIFICATIONS 
+TECHNICAL SPECIFICATIONS
 
 CRYPTOGRAPHIC DETAILS:
 - Algorithm: AES-256-GCM (authenticated encryption)
@@ -59,13 +59,12 @@ BUILD INFO:
 - Compression: zlib, zstandard, lzma
 - Compiler: Nuitka (when distributed)
 - Platform: Windows based, MIGHT work on Linux/Mac
-- Build version: 1-1-0-9-2-0-2-5
-- Version: 0.8a
+- Build version: 1-5-0-9-2-0-2-5
+- Version: 0.9a
 
 KNOWN LIMITATIONS:
 - No file shredding after encryption
 - Progress reporting could be more accurate for archives
 - No key file support (password only)
-- Single threaded crypto operations (multi-threading sounds un-fun?)
 
 ## end
