@@ -1,7 +1,11 @@
 # cmp.py
-## last updated: 05/09/2025 <d/m/y>
+## last updated: 18/09/2025 <d/m/y>
 ## p-y-l-i
-from importzz import *
+import os
+import sys
+import zlib
+import zstandard as zstd
+import lzma
 
 COMPRESSION_NONE = 0
 COMPRESSION_ZLIB = 1

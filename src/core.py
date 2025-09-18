@@ -1,14 +1,41 @@
 ## core.py
-## last updated: 15/09/2025 <d/m/y>
+## last updated: 19/09/2025 <d/m/y>
 ## p-y-l-i
-from importzz import *
+import os
+import io
+import struct
+import ctypes
+import hashlib
+import reedsolo
+import mmap
+import base64
+import threading
+from PySide6.QtCore import QThread
+from PySide6.QtCore import Signal as pyqtSignal
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from multiprocessing import Pool, cpu_count
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from queue import Queue
+try:
+    from argon2 import PasswordHasher
+    from argon2.exceptions import VerifyMismatchError, HashingError
+    from argon2.low_level import hash_secret_raw, Type
+    ARGON2_AVAILABLE = True
+except ImportError:
+    ARGON2_AVAILABLE = False
+
 from sm import clear_buffer
 from cmp import compress_chunk, decompress_chunk, should_skip_compression, COMPRESSION_NONE, COMPRESSION_MODES
 
 CHUNK_SIZE = 3 * 1024 * 1024
-FORMAT_VERSION = 5
+FORMAT_VERSION = 6
 ALGORITHM_ID = 1
-KDF_ID = 1
+KDF_ID_PBKDF2 = 1
+KDF_ID_ARGON2 = 2
 SALT_SIZE = 16
 NONCE_SIZE = 12
 MAGIC_NUMBER = b"PYLI\x00"
@@ -17,6 +44,9 @@ TAG_SIZE = 16
 ECC_BYTES = 32
 FLAG_RECOVERY_DATA = 0x01
 FLAG_ARCHIVE_MODE = 0x02
+ARGON2_TIME_COST = 3
+ARGON2_MEMORY_COST = 65536
+ARGON2_PARALLELISM = 4
 
 def compress_chunk_threaded(chunk_data, compression_level):
     return compress_chunk(chunk_data, compression_level)
@@ -66,7 +96,7 @@ def extract_archive(archive_data, output_dir, progress_callback=None):
         offset += 4      
         if offset + path_len > len(archive_data):
             raise ValueError(f"Invalid archive: unexpected end while reading path for file {i}")        
-        rel_path = archive_data[offset:offset+path_len].decode('utf-8')
+        rel_path = archive_data[offset:offset+path_len].decode("utf-8")
         offset += path_len        
         if offset + 8 > len(archive_data):
             raise ValueError(f"Invalid archive: unexpected end while reading file size for file {i}")       
@@ -92,7 +122,7 @@ def extract_archive(archive_data, output_dir, progress_callback=None):
         progress_callback(100.0)
 
 class CryptoWorker:
-    def __init__(self, operation, in_path, out_path, password, custom_ext=None, new_name_type=None, output_dir=None, chunk_size=CHUNK_SIZE, kdf_iterations=1000000, secure_clear=False, add_recovery_data=False, compression_level='none', archive_mode=False, progress_callback=None, parent=None):
+    def __init__(self, operation, in_path, out_path, password, custom_ext=None, new_name_type=None, output_dir=None, chunk_size=CHUNK_SIZE, kdf_iterations=1000000, secure_clear=False, add_recovery_data=False, compression_level="none", archive_mode=False, use_argon2=False, argon2_time_cost=ARGON2_TIME_COST, argon2_memory_cost=ARGON2_MEMORY_COST, argon2_parallelism=ARGON2_PARALLELISM, progress_callback=None, parent=None):
         self.operation = operation
         self.in_path = in_path
         self.out_path = out_path
@@ -106,11 +136,15 @@ class CryptoWorker:
         self.add_recovery_data = add_recovery_data
         self.compression_level = compression_level
         self.archive_mode = archive_mode
+        self.use_argon2 = use_argon2 and ARGON2_AVAILABLE
+        self.argon2_time_cost = argon2_time_cost
+        self.argon2_memory_cost = argon2_memory_cost
+        self.argon2_parallelism = argon2_parallelism
         self.progress_callback = progress_callback
         self.is_canceled = False
         self.max_workers = min(8, os.cpu_count() or 1)
 
-    def _derive_key(self, salt, iterations=None):
+    def _derive_key_pbkdf2(self, salt, iterations=None):
         if iterations is None:
             iterations = self.kdf_iterations
         pwd_bytes = self.password.encode("utf-8")
@@ -129,6 +163,31 @@ class CryptoWorker:
         pwd_bytes = None
         return key
 
+    def _derive_key_argon2(self, salt):
+        try:
+            password_bytes = self.password.encode("utf-8")
+            key = hash_secret_raw(
+                secret=password_bytes,
+                salt=salt,
+                time_cost=self.argon2_time_cost,
+                memory_cost=self.argon2_memory_cost,
+                parallelism=self.argon2_parallelism,
+                hash_len=32,          # <- AES-256 key
+                type=Type.ID
+            )
+            password_bytes = None
+            return key
+        except HashingError as e:
+            raise ValueError(f"Argon2 key derivation failed: {str(e)}")
+
+    def _derive_key(self, salt, iterations=None, kdf_type=None):
+        if kdf_type is None:
+            kdf_type = KDF_ID_ARGON2 if self.use_argon2 else KDF_ID_PBKDF2
+        if kdf_type == KDF_ID_ARGON2 and ARGON2_AVAILABLE:
+            return self._derive_key_argon2(salt)
+        else:
+            return self._derive_key_pbkdf2(salt, iterations)
+
     def encrypt_file(self):
         if not self.archive_mode or not hasattr(self, "_file_list") or len(self._file_list) <= 1:
             return self._encrypt_single_file()
@@ -143,7 +202,8 @@ class CryptoWorker:
         if should_skip_compression(self.in_path):
             effective_compression_level = "none"        
         salt = os.urandom(SALT_SIZE)
-        key = self._derive_key(salt)
+        kdf_type = KDF_ID_ARGON2 if self.use_argon2 else KDF_ID_PBKDF2
+        key = self._derive_key(salt, kdf_type=kdf_type)
         aesgcm = AESGCM(key)     
         original_ext = os.path.splitext(self.in_path)[1].lstrip(".").encode("utf-8")
         if len(original_ext) > MAX_EXT_LEN:
@@ -177,11 +237,17 @@ class CryptoWorker:
             outfile.write(struct.pack("!B", FORMAT_VERSION))
             flags = FLAG_RECOVERY_DATA if self.add_recovery_data else 0
             outfile.write(struct.pack("!B", flags))
+            outfile.write(struct.pack("!B", kdf_type))
             compression_id_pos = outfile.tell()
             outfile.write(struct.pack("!B", COMPRESSION_NONE))
             if self.add_recovery_data:
                 outfile.write(struct.pack("!B", ECC_BYTES))
-            outfile.write(struct.pack("!I", self.kdf_iterations))
+            if kdf_type == KDF_ID_ARGON2:
+                outfile.write(struct.pack("!I", self.argon2_time_cost))
+                outfile.write(struct.pack("!I", self.argon2_memory_cost))
+                outfile.write(struct.pack("!I", self.argon2_parallelism))
+            else:
+                outfile.write(struct.pack("!I", self.kdf_iterations))
             outfile.write(salt)
             outfile.write(ext_nonce)
             outfile.write(struct.pack("!I", len(encrypted_ext)))
@@ -307,7 +373,8 @@ class CryptoWorker:
             archive_header_data.extend(struct.pack("!Q", file_size))
         effective_compression_level = self.compression_level
         salt = os.urandom(SALT_SIZE)
-        key = self._derive_key(salt)
+        kdf_type = KDF_ID_ARGON2 if self.use_argon2 else KDF_ID_PBKDF2
+        key = self._derive_key(salt, kdf_type=kdf_type)
         aesgcm = AESGCM(key)
         original_ext = "archive".encode("utf-8")
         ext_nonce = os.urandom(NONCE_SIZE)
@@ -342,11 +409,20 @@ class CryptoWorker:
             flags = FLAG_RECOVERY_DATA if self.add_recovery_data else 0
             flags |= FLAG_ARCHIVE_MODE
             outfile.write(struct.pack("!B", flags))
+            outfile.write(struct.pack("!B", kdf_type))  # Write KDF type
             compression_id_pos = outfile.tell()
             outfile.write(struct.pack("!B", COMPRESSION_NONE))
             if self.add_recovery_data:
                 outfile.write(struct.pack("!B", ECC_BYTES))
-            outfile.write(struct.pack("!I", self.kdf_iterations))
+            
+            # Write KDF parameters based on type
+            if kdf_type == KDF_ID_ARGON2:
+                outfile.write(struct.pack("!I", self.argon2_time_cost))
+                outfile.write(struct.pack("!I", self.argon2_memory_cost))
+                outfile.write(struct.pack("!I", self.argon2_parallelism))
+            else:
+                outfile.write(struct.pack("!I", self.kdf_iterations))
+                
             outfile.write(salt)
             outfile.write(ext_nonce)
             outfile.write(struct.pack("!I", len(encrypted_ext)))
@@ -439,15 +515,28 @@ class CryptoWorker:
             flags = struct.unpack("!B", infile.read(1))[0]
             recovery_enabled = (flags & FLAG_RECOVERY_DATA) != 0
             is_archive = (flags & FLAG_ARCHIVE_MODE) != 0
+            kdf_type = KDF_ID_PBKDF2
+            if version >= 6:
+                kdf_type = struct.unpack("!B", infile.read(1))[0]
             compression_id = COMPRESSION_NONE
             if version >= 4:
                  compression_id = struct.unpack("!B", infile.read(1))[0]
             ecc_bytes = 0
             if recovery_enabled:
                 ecc_bytes = struct.unpack("!B", infile.read(1))[0]
-            kdf_iterations = struct.unpack("!I", infile.read(4))[0]
+            if kdf_type == KDF_ID_ARGON2:
+                argon2_time_cost = struct.unpack("!I", infile.read(4))[0]
+                argon2_memory_cost = struct.unpack("!I", infile.read(4))[0]
+                argon2_parallelism = struct.unpack("!I", infile.read(4))[0]
+                kdf_iterations = None
+            else:
+                kdf_iterations = struct.unpack("!I", infile.read(4))[0]
+                argon2_time_cost = argon2_memory_cost = argon2_parallelism = None   
             salt = infile.read(SALT_SIZE)
-            key = self._derive_key(salt, iterations=kdf_iterations)
+            self.argon2_time_cost = argon2_time_cost
+            self.argon2_memory_cost = argon2_memory_cost
+            self.argon2_parallelism = argon2_parallelism
+            key = self._derive_key(salt, iterations=kdf_iterations, kdf_type=kdf_type)
             aesgcm = AESGCM(key)
             ext_nonce = infile.read(NONCE_SIZE)
             ext_len = struct.unpack("!I", infile.read(4))[0]
@@ -546,8 +635,6 @@ class CryptoWorker:
             with open(out_path, "wb") as outfile:
                 outfile.write(decrypted_data)        
         if self.progress_callback: self.progress_callback(100.0)
-    def cancel(self):
-        self.is_canceled = True
 
 class BatchProcessorThread(QThread):
     batch_progress_updated = pyqtSignal(int, int)
@@ -555,7 +642,7 @@ class BatchProcessorThread(QThread):
     progress_updated = pyqtSignal(float)
     finished = pyqtSignal(list)
     
-    def __init__(self, operation, file_paths, password, custom_ext=None, output_dir=None, new_name_type=None, chunk_size=CHUNK_SIZE, kdf_iterations=1000000, secure_clear=False, add_recovery_data=False, compression_level='none', archive_mode=False, parent=None):
+    def __init__(self, operation, file_paths, password, custom_ext=None, output_dir=None, new_name_type=None, chunk_size=CHUNK_SIZE, kdf_iterations=1000000, secure_clear=False, add_recovery_data=False, compression_level="none", archive_mode=False, use_argon2=False, argon2_time_cost=ARGON2_TIME_COST, argon2_memory_cost=ARGON2_MEMORY_COST, argon2_parallelism=ARGON2_PARALLELISM, parent=None):
         super().__init__(parent)
         self.operation = operation
         self.file_paths = file_paths
@@ -569,6 +656,10 @@ class BatchProcessorThread(QThread):
         self.add_recovery_data = add_recovery_data
         self.compression_level = compression_level
         self.archive_mode = archive_mode
+        self.use_argon2 = use_argon2
+        self.argon2_time_cost = argon2_time_cost
+        self.argon2_memory_cost = argon2_memory_cost
+        self.argon2_parallelism = argon2_parallelism
         self.is_canceled = False
         self.errors = []
         self.worker = None
@@ -587,6 +678,8 @@ class BatchProcessorThread(QThread):
                     chunk_size=self.chunk_size, kdf_iterations=self.kdf_iterations,
                     secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data,
                     compression_level=self.compression_level, archive_mode=self.archive_mode,
+                    use_argon2=self.use_argon2, argon2_time_cost=self.argon2_time_cost,
+                    argon2_memory_cost=self.argon2_memory_cost, argon2_parallelism=self.argon2_parallelism,
                     progress_callback=lambda p: self.progress_updated.emit(p)
                 )                
                 self.worker._file_list = self.file_paths
@@ -609,6 +702,8 @@ class BatchProcessorThread(QThread):
                         chunk_size=self.chunk_size, kdf_iterations=self.kdf_iterations,
                         secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data,
                         compression_level=self.compression_level, archive_mode=self.archive_mode,
+                        use_argon2=self.use_argon2, argon2_time_cost=self.argon2_time_cost,
+                        argon2_memory_cost=self.argon2_memory_cost, argon2_parallelism=self.argon2_parallelism,
                         progress_callback=lambda p: self.progress_updated.emit(p)
                     )
                     if self.operation == "encrypt": 

@@ -1,7 +1,13 @@
 ## outs.py
-## last updated: 11/09/2025 <d/m/y>
+## last updated: 18/09/2025 <d/m/y>
 ## p-y-l-i
-from importzz import *
+import os
+import ctypes
+import sys
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtCore import Signal as pyqtSignal
 
 class CustomDialog(QDialog):
     def __init__(self, title, message, parent=None):
@@ -222,7 +228,7 @@ class DebugConsole(QDialog):
             return
         sound_name = args[0]
         self.append_text(f"Attempting to play sound: {sound_name}\n")
-        if self.parent_app and hasattr(self.parent_app, 'sound_manager'):
+        if self.parent_app and hasattr(self.parent_app, "sound_manager"):
             self.parent_app.sound_manager.play_sound(sound_name)
             self.append_text("Play command sent. Check your audio output.\n")
         else:

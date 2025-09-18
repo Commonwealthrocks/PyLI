@@ -1,7 +1,15 @@
 ## sfx.py
-## last updated: 06/09/2025 <d/m/y>
+## last updated: 19/09/2025 <d/m/y>
 ## p-y-l-i
-from importzz import *
+import sys
+import os
+import warnings
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+stderr = sys.stderr
+sys.stderr = open(os.devnull, "w")
+import pygame
+sys.stderr = stderr
+from colorama import *
 
 class SoundManager:
     def __init__(self):
@@ -14,8 +22,8 @@ class SoundManager:
             self.mixer_initialized = True
             self.sound_dir = self.get_sound_dir()
         except pygame.error as e:
-            print(f"[DEV PRINT] Failed to initialize pygame mixer: {e}")
-            print("[DEV PRINT] Sound effects will be disabled.")
+            print(Fore.RED + f"[DEV PRINT] Failed to initialize pygame mixer.\n\ne:{e}")
+            print("[DEV PRINT] Sound effects will be disabled." + Style.RESET_ALL)
 
     def get_sound_dir(self):
         if getattr(sys, "frozen", False):
@@ -34,25 +42,24 @@ class SoundManager:
             self.sounds[sound_name] = sound
             return True
         except pygame.error as e:
-            print(f"[DEV PRINT] Failed to load sound '{sound_name}': {e}")
+            print(Fore.RED + f"[DEV PRINT] Failed to load sound '{sound_name}'.\n\ne: {e}" + Style.RESET_ALL)
             return False
             
     def play_sound(self, sound_name):
         if not self.mixer_initialized:
             return
-            
         if sound_name not in self.sounds:
             if not self.load_sound(sound_name):
-                print(f"[DEV PRINT] Failed to load and play sound: {sound_name}")
+                print(Fore.RED + f"[DEV PRINT] Failed to load and play sound: {sound_name}." + Style.RESET_ALL)
                 return        
         try:
             self.sounds[sound_name].play()
         except pygame.error as e:
-            print(f"[DEV PRINT] Failed to play sound '{sound_name}': {e}")
+            print(Fore.RED + f"[DEV PRINT] Failed to play sound '{sound_name}'.\n\ne: {e}")
 
     def list_available_sounds(self):
         if not self.sound_dir or not os.path.exists(self.sound_dir):
-            print("[DEV PRINT] Sound directory not found")
+            print(Fore.RED + "[DEV PRINT] Sound directory not found." + Style.RESET_ALL)
             return []            
         sound_files = []
         for file in os.listdir(self.sound_dir):

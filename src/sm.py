@@ -1,15 +1,14 @@
 ## sm.py
-## last updated: 15/09/2025 <d/m/y>
+## last updated: 19/09/2025 <d/m/y>
 ## p-y-l-i
-from importzz import *
 import ctypes
 import os
 import sys
+from colorama import *
 
 _lib = None
 lib_name = None
 lib_dir = None
-
 if sys.platform == "win32":
     lib_name = "secure_mem.dll"
     lib_dir = "spyware"  # no the code is not ACTUALLY spyware...
@@ -41,7 +40,7 @@ else:
             print(Fore.GREEN + f"[DEV PRINT] Loaded secure memory library '{lib_name}'; zero'd" + Style.RESET_ALL)
         except (OSError, AttributeError) as e:
             _lib = None
-            print(Fore.RED + f"[DEV PRINT] Could not load secure memory library '{lib_name}'\n\n{e}")
+            print(Fore.RED + f"[DEV PRINT] Could not load secure memory library '{lib_name}'.\n\ne: {e}")
             print("[DEV PRINT] Secure password clearing will be disabled." + Style.RESET_ALL)
 
 def clear_buffer(buffer):

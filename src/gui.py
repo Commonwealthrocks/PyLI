@@ -1,7 +1,22 @@
 ## gui.py
-## last updated: 11/9/2025 <d/m/y>
+## last updated: 19/9/2025 <d/m/y>
 ## p-y-l-i
-from importzz import *
+import os
+import sys
+import ctypes
+import json
+from colorama import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtCore import Signal as pyqtSignal
+try:
+    from argon2 import PasswordHasher
+    ARGON2_AVAILABLE = True
+    print(Fore.GREEN + "[DEV PRINT] Argon2ID is available; dr2" + Style.RESET_ALL)
+except ImportError:
+    ARGON2_AVAILABLE = False
+
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
 from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole
@@ -73,6 +88,10 @@ class PyLI(QWidget):
         self.add_recovery_data = False
         self.compression_level = "none"
         self.archive_mode = False
+        self.use_argon2 = False
+        self.argon2_time_cost = 3
+        self.argon2_memory_cost = 65536
+        self.argon2_parallelism = 4
         self.batch_processor = None
         self.progress_dialog = None
         self.config_path = self.get_config_path()
@@ -99,10 +118,11 @@ class PyLI(QWidget):
 
     def init_debug_console(self):
         if self.is_admin:
-            VER = "0.8a"
+            VER = "1.0"
             self.debug_console = DebugConsole(parent=self)
             print("--- PyLI debug console Initialized (Administrator) ---")
             print(f"--- Version: {VER} ---")
+            print(f"--- Argon2 Available: {ARGON2_AVAILABLE} ---")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_0 and event.modifiers() == Qt.AltModifier:
@@ -144,6 +164,10 @@ class PyLI(QWidget):
                 self.add_recovery_data = config.get("add_recovery_data", False)
                 self.compression_level = config.get("compression_level", "none")
                 self.archive_mode = config.get("archive_mode", False)
+                self.use_argon2 = config.get("use_argon2", False)
+                self.argon2_time_cost = config.get("argon2_time_cost", 3)
+                self.argon2_memory_cost = config.get("argon2_memory_cost", 65536)
+                self.argon2_parallelism = config.get("argon2_parallelism", 4)
         except (FileNotFoundError, json.JSONDecodeError):
             pass
         except Exception as e:
@@ -165,7 +189,11 @@ class PyLI(QWidget):
             "secure_clear": self.secure_clear,
             "add_recovery_data": self.add_recovery_data,
             "compression_level": self.compression_level,
-            "archive_mode": self.archive_mode
+            "archive_mode": self.archive_mode,
+            "use_argon2": self.use_argon2,
+            "argon2_time_cost": self.argon2_time_cost,
+            "argon2_memory_cost": self.argon2_memory_cost,
+            "argon2_parallelism": self.argon2_parallelism
         }
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
@@ -254,6 +282,17 @@ class PyLI(QWidget):
             if dialog.exec() != QDialog.Accepted:
                 checkbox.setChecked(False)
 
+    def handle_argon2_checkbox(self, state):
+        if state and not ARGON2_AVAILABLE:
+            self.play_warning_sound()
+            dialog = CustomDialog("Argon2 not available", "Argon2 library is not installed. Please install it with:\npip install argon2-cffi\n\nUsing PBKDF2 as fallback.", self)
+            dialog.exec()
+            self.use_argon2_checkbox.setChecked(False)
+        elif state:
+            self.play_warning_sound()
+            dialog = CustomDialog("Argon2 info", "Argon2 is the modern standard for password hashing and offers better security than PBKDF2.\n\nIt may be slightly slower but provides better protection against GPU attacks.", self)
+            dialog.exec()
+
     def check_ultrakill_warning(self, text):
         if "ULTRAKILL" in text:
             self.play_warning_sound()
@@ -276,6 +315,48 @@ class PyLI(QWidget):
         """)
         content_widget = QWidget()
         layout = QVBoxLayout(content_widget)
+        kdf_group = QGroupBox("Key derivation function (KDF)")
+        kdf_layout = QFormLayout()
+        self.use_argon2_checkbox = QCheckBox()
+        self.use_argon2_checkbox.setChecked(self.use_argon2 and ARGON2_AVAILABLE)
+        self.use_argon2_checkbox.stateChanged.connect(self.handle_argon2_checkbox)
+        if not ARGON2_AVAILABLE:
+            self.use_argon2_checkbox.setEnabled(False)
+            self.use_argon2_checkbox.setToolTip("Argon2 library not installed. Install with: pip install argon2-cffi")
+        else:
+            self.use_argon2_checkbox.setToolTip("Use Argon2 (modern, secure) instead of PBKDF2 for key derivation.\nArgon2 provides better protection against GPU attacks.")
+        kdf_layout.addRow("Use Argon2ID:", self.use_argon2_checkbox)
+        self.kdf_iterations_spinbox = QSpinBox()
+        self.kdf_iterations_spinbox.setRange(100000, 5000000)
+        self.kdf_iterations_spinbox.setSingleStep(100000)
+        self.kdf_iterations_spinbox.setValue(self.kdf_iterations)
+        self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
+        self.kdf_iterations_spinbox.setToolTip("Number of iterations for PBKDF2 (only used when Argon2 is disabled)")
+        kdf_layout.addRow("PBKDF2 iterations:", self.kdf_iterations_spinbox)
+        self.argon2_time_spinbox = QSpinBox()
+        self.argon2_time_spinbox.setRange(1, 20)
+        self.argon2_time_spinbox.setValue(self.argon2_time_cost)
+        self.argon2_time_spinbox.setToolTip("Argon2 time cost (iterations).\n\nHigher = more secure but slower.\n\nDefault: 3")
+        kdf_layout.addRow("Argon2 time cost:", self.argon2_time_spinbox)
+        self.argon2_memory_spinbox = QSpinBox()
+        self.argon2_memory_spinbox.setRange(1024, 1048576)
+        self.argon2_memory_spinbox.setSingleStep(1024)
+        self.argon2_memory_spinbox.setValue(self.argon2_memory_cost)
+        self.argon2_memory_spinbox.setGroupSeparatorShown(True)
+        self.argon2_memory_spinbox.setSuffix(" KB")
+        self.argon2_memory_cost_preset = QPushButton("Presets")
+        self.argon2_memory_cost_preset.clicked.connect(self.show_argon2_presets)
+        argon2_memory_layout = QHBoxLayout()
+        argon2_memory_layout.addWidget(self.argon2_memory_spinbox)
+        argon2_memory_layout.addWidget(self.argon2_memory_cost_preset)
+        self.argon2_memory_spinbox.setToolTip("Argon2 memory usage in KB.\n\nHigher = more secure but uses more RAM. Default: 64MB")
+        kdf_layout.addRow("Argon2 memory cost:", argon2_memory_layout)
+        self.argon2_parallelism_spinbox = QSpinBox()
+        self.argon2_parallelism_spinbox.setRange(1, 16)
+        self.argon2_parallelism_spinbox.setValue(self.argon2_parallelism)
+        self.argon2_parallelism_spinbox.setToolTip("Argon2 parallelism (threads).\n\nShould match CPU cores.\n\nDefault: 4")
+        kdf_layout.addRow("Argon2 parallelism:", self.argon2_parallelism_spinbox)       
+        kdf_group.setLayout(kdf_layout)
         compression_group = QGroupBox("Compression")
         compression_layout = QFormLayout()
         self.compression_combo = QComboBox()
@@ -283,10 +364,10 @@ class PyLI(QWidget):
         compression_mapping = {"None": "none", "Normal (fast)": "normal", "Best (slow-er)": "best", "ULTRAKILL (probably slow)": "ultrakill", "[L] ULTRAKILL (???)": "[L] ultrakill"}
         current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
         self.compression_combo.setCurrentText(current_text)
-        self.compression_combo.setToolTip("Selects the compression algorithm to use before encryption.\n'None' is fastest. Higher levels give better compression but are slower.\nCompression is automatically skipped for already compressed file types (e.g., jpg, mp4 and so on...).")
+        self.compression_combo.setToolTip("Compression makes (or tries) to make files smaller, if you want speed it is NOT recommended to use compression at all.")
         compression_layout.addRow("Compression Level:", self.compression_combo)
         compression_group.setLayout(compression_layout)
-        security_group = QGroupBox("Security/Data integrity")
+        security_group = QGroupBox("Security / data integrity")
         security_layout = QFormLayout()
         self.secure_clear_checkbox = QCheckBox()
         self.secure_clear_checkbox.setChecked(self.secure_clear)
@@ -310,13 +391,8 @@ class PyLI(QWidget):
         self.chunk_size_spinbox.setValue(self.chunk_size_mb)
         self.chunk_size_spinbox.setSuffix(" MB")
         performance_layout.addRow("Chunk size:", self.chunk_size_spinbox)
-        self.kdf_iterations_spinbox = QSpinBox()
-        self.kdf_iterations_spinbox.setRange(100000, 5000000)
-        self.kdf_iterations_spinbox.setSingleStep(100000)
-        self.kdf_iterations_spinbox.setValue(self.kdf_iterations)
-        self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
-        performance_layout.addRow("KDF iterations:", self.kdf_iterations_spinbox)
         performance_group.setLayout(performance_layout)
+        layout.addWidget(kdf_group)
         layout.addWidget(compression_group)
         layout.addWidget(security_group)
         layout.addWidget(performance_group)
@@ -324,6 +400,33 @@ class PyLI(QWidget):
         scroll_area.setWidget(content_widget)
         main_layout.addWidget(scroll_area)
         return advanced_tab
+
+    def show_argon2_presets(self):
+        presets = {
+            "Interactive (fast)": 1024,
+            "Sensitive (balanced)": 65536,
+            "Paranoid (slow)": 262144,
+            "ULTRAKILL (very slow)": 524288 
+        }
+        preset_dialog = QDialog(self)
+        preset_dialog.setWindowTitle("Argon2ID memory cost presets")
+        preset_dialog.setModal(True)
+        layout = QVBoxLayout(preset_dialog)
+        info_label = QLabel("Choose an Argon2ID memory preset based on how fucking afraid you are:")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        for name, value in presets.items():
+            button = QPushButton(f"{name} - {value:,} KB ({value//1024} MB)")
+            button.clicked.connect(lambda checked, v=value: self.set_argon2_memory_preset(v, preset_dialog))
+            layout.addWidget(button)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(preset_dialog.reject)
+        layout.addWidget(cancel_button)
+        preset_dialog.exec()
+    
+    def set_argon2_memory_preset(self, value, dialog):
+        self.argon2_memory_spinbox.setValue(value)
+        dialog.accept()
 
     def create_settings_tab(self):
         settings_tab = QWidget()
@@ -448,6 +551,11 @@ class PyLI(QWidget):
         self.secure_clear = self.secure_clear_checkbox.isChecked()
         self.add_recovery_data = self.recovery_checkbox.isChecked()
         self.archive_mode = self.archive_mode_checkbox.isChecked()
+        self.use_argon2 = self.use_argon2_checkbox.isChecked() and ARGON2_AVAILABLE
+        self.argon2_time_cost = self.argon2_time_spinbox.value()
+        self.argon2_memory_cost = self.argon2_memory_spinbox.value()
+        self.argon2_parallelism = self.argon2_parallelism_spinbox.value()
+        
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
             if not os.path.exists(desktop_path): desktop_path = os.path.expanduser("~")
@@ -507,6 +615,8 @@ class PyLI(QWidget):
             chunk_size=self.chunk_size_mb * 1024 * 1024, kdf_iterations=self.kdf_iterations,
             secure_clear=self.secure_clear, add_recovery_data=self.add_recovery_data,
             compression_level=self.compression_level, archive_mode=self.archive_mode,
+            use_argon2=self.use_argon2, argon2_time_cost=self.argon2_time_cost,
+            argon2_memory_cost=self.argon2_memory_cost, argon2_parallelism=self.argon2_parallelism,
             parent=self)
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
         self.batch_processor.status_message.connect(lambda msg: self.progress_dialog.file_label.setText(msg))
