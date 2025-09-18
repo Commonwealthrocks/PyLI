@@ -1,4 +1,5 @@
 ## changelog.txt
+## scroll down for latest version
 CHANGELOGS
 
 VERSION 0.1a - 20.08.2025 <d/m/y>
@@ -88,6 +89,15 @@ VERSION 0.9a - 15.09.2025 <d/m/y>
 - Added multi-threading
 - Re-worked C code for secure clearing
 - Removed macOS support for secure memory clearing due to not having a darwin--toolchain
+
+VERSION 1.0 - 18.09.2025 <d/m/y> [LATEST]
+[PUBLIC BUILD]
+- Added Agron2ID
+- Added customizing with Argon2ID
+- Added fallback for Argon2ID to PBKDF2
+- Fixed AES wrong byte header
+- Fixed CLI mode being outdated slightly
+- Re-worked CLI mode; v1.0
 
 That's all for now :)
 
