@@ -1,7 +1,7 @@
 ## PyLI 
 
 Build env-s0 for **PyLI**
-Latest version: `0.9a`
+Latest version: `v1.0`
 
 ## "What the fuck do I need?" *Well to build manually yourself you'd need...*
 - Python `3.10+` (tested on `3.12`)
@@ -11,7 +11,7 @@ Python `3.12` download: https://www.python.org/downloads/release/python-3120/
 
 ## "What about the libs?" *Glad you asked!*
 ```bash
-pip install PySide6 cryptography pygame reedsolo zstandard
+pip install PySide6 cryptography pygame reedsolo zstandard argon2-cffi
 ```
 
 Or install from requirements if available (prolly not lol):
@@ -30,6 +30,7 @@ The key thing to have would be a working OS... yeah I know it's crazy. Anywho un
 ### **Linux/macOS** - *nerds or geeks use this*
 - Secure memory clearing libraries may not work (`secure_mem.so/.dylib`)
 - All other functionality should work normally
+- Secure memory clearing has been killed off for macOS entirely
 
 ### **TempleOS** - *shoutout Terry Davis*
 - No lol
@@ -50,17 +51,16 @@ python -m nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-co
 ### Glorified zipfile (**PyInstaller**)
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --add-data "sfx;sfx" --add-data "txts;txts" --add-data "c;c" gui.py
+pyinstaller --onefile --windowed --add-data "sfx;sfx" --add-data "txts;txts" --add-data "c;c" --icon="pyli_icon.ico" gui.py
 ```
 
-## "What about the PS?" - *Well, here it is. And no I won't be explaining it, making this with ASCII was already hellish enough.*
+## "What about the PS?" - *Well, here it is. And no I won't be explaining it.*
 ```
-src/
+src
 │   cli.py
 │   cmp.py
 │   core.py
 │   gui.py
-│   importzz.py
 │   outs.py
 │   sfx.py
 │   sm.py
@@ -123,16 +123,18 @@ src/
 - **macOS**: Core functionality works, secure memory may be disabled  
 
 ## "I'm having issues while building it!!" - *Shame, but these are the most common issues I assume...*
-1. **Missing PySide6**: Install with `pip install PySide6`
-2. **zstandard import error**: Install with `pip install zstandard`  
-3. **C library not loading**: Check file permissions on `c/` directory
-4. **Sound system initialization failed**: pygame audio not available (non-critical)
+1. **Missing PySide6**: install with `pip install PySide6`
+2. **zstandard import error**: install with `pip install zstandard`
+3. **cryptography not found**: install with `pip install cryptography`
+4. **Argon2ID missing**: install with `pip install argon2-cffi`
+5. **C library not loading**: check file permissions on `c/` directory
+6. **Sound system initialization failed**: pygame audio not available (non-critical)
 
 ## "During runtime I have more issues :(" - *Well in that case, it's probably one of these fucky-ups*
-1. **Drag & drop not working**: Run without Administrator privileges
-2. **Config not saving**: Check write permissions to AppData folder
-3. **Compression errors**: Verify zstandard installation
-4. **Memory errors with large archives**: Reduce chunk size in settings
+1. **Drag & drop not working**: run without Administrator privileges
+2. **Config not saving**: check write permissions to `AppData` folder
+3. **Compression errors**: verify zstandard installation
+4. **Memory errors with large archives**: reduce chunk size in settings
 
 ## "What IDE should I use?" - *Well, you probably expect this but!!*
 Use **Visual Studio Code (VSCode)** for everyones sake, or if you really despise life and all that is... use **IDLE** :D
