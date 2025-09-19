@@ -1,5 +1,5 @@
 # Features at glance if you don't give a shit about this readme :) 
-- Uses AES-256-GCM with PBKDF2HMAC.
+- Uses AES-256-GCM with Argon2ID (or PBKDF2HMAC for fallback).
 - Unique salt and nonce per file / chunk.
 - Portable + offline with ZERO data collection.
 - Archive mode for multiple files with folder structure preservation.
@@ -10,11 +10,10 @@
 - Open source, and easy to wipe off your system if you hate it.
 
 # **PyLI** - *Not harvesting your data since 2025!*
-**PyLI** is an application coded in Python used for encrypting files with AES-256-GCM and PBKDF2HMAC for key derivation up to
-1,000,000 (editable in source). It uses Salt and Nonce to ensure secure and robust cryptographic operations, pretty fancy I know...!
+**PyLI** is a Python app designed to encrypt files with AES-256-GCM using Argon2id (or PBKDF2HMAC fallback) for key derivation. It’s portable, offline, and secure as fuck. Salt + nonce per file ensures robust crypto operations.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
-![](https://img.shields.io/badge/C-Library-darkblue?logo=c&logoColor=white)
+![C](https://img.shields.io/badge/C-Library-darkblue?logo=c&logoColor=white)
 ![AES](https://img.shields.io/badge/Encryption-AES--256--GCM-green?logo=lock&logoColor=white)
 ![Offline](https://img.shields.io/badge/100%25-Offline-important)
 ![License](https://img.shields.io/badge/License-MIT-orange)
@@ -65,4 +64,4 @@ example `1234` or `password`, then yeah expect AES to be pure useless; use stron
 
 
 # **PyLI:**
-Because WinRAR asks you for money and I don't, for now...?
+Because WinRAR asks you for cash and I don't, for now...?
