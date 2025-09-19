@@ -46,7 +46,7 @@ If you have multiple files you wish to encrypt, use **PyLI's** archive mode to b
 The app automatically skips compression for already compressed formats like `.jpg`, `.mp4`, `.zip`, etc.
 
 ## "What about the master password?" - *Well, just cause we use military grade encryption does not mean you should cheap out on this...*
-AES-256-GCM is complex math all under one master password, even with 1 MILLION key derivations with PBKDF2HMAC. If your password is weak
+AES-256-GCM is complex math all under one master password, even with Argon2ID or PBKDF2HMAC. If your password is weak
 example `1234` or `password`, then yeah expect AES to be pure useless; use strong passwords for sensitive information.
 
 ## "okay... now why should I use this?" - *Well, you don't have to use it but when making this app, I made some… decisions…*
