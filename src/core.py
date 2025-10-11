@@ -1,5 +1,5 @@
 ## core.py
-## last updated: 19/09/2025 <d/m/y>
+## last updated: 11/010/2025 <d/m/y>
 ## p-y-l-i
 import os
 import io
@@ -52,8 +52,8 @@ def compress_chunk_threaded(chunk_data, compression_level):
     return compress_chunk(chunk_data, compression_level)
 
 def create_archive(file_paths, progress_callback=None):
-    archive_data = bytearray()
-    archive_data.extend(struct.pack("!I", len(file_paths)))
+    archive_header = bytearray()
+    archive_header.extend(struct.pack("!I", len(file_paths)))
     total_size = 0
     file_info = []
     for file_path in file_paths:
@@ -61,24 +61,13 @@ def create_archive(file_paths, progress_callback=None):
             size = os.path.getsize(file_path)
             rel_path = os.path.relpath(file_path, os.path.commonpath(file_paths) if len(file_paths) > 1 else os.path.dirname(file_path))
             file_info.append((file_path, rel_path, size))
-            total_size += size    
-    processed_size = 0
+            total_size += size
     for file_path, rel_path, file_size in file_info:
         rel_path_bytes = rel_path.encode("utf-8")
-        archive_data.extend(struct.pack("!I", len(rel_path_bytes)))
-        archive_data.extend(rel_path_bytes)
-        archive_data.extend(struct.pack("!Q", file_size))
-    for file_path, rel_path, file_size in file_info:
-        with open(file_path, "rb") as f:
-            while True:
-                chunk = f.read(CHUNK_SIZE)
-                if not chunk:
-                    break
-                archive_data.extend(chunk)
-                processed_size += len(chunk)
-                if progress_callback:
-                    progress_callback(min(100.0, (processed_size / total_size) * 100))  
-    return bytes(archive_data)
+        archive_header.extend(struct.pack("!I", len(rel_path_bytes)))
+        archive_header.extend(rel_path_bytes)
+        archive_header.extend(struct.pack("!Q", file_size))
+    return bytes(archive_header), file_info, total_size
 
 def extract_archive(archive_data, output_dir, progress_callback=None):
     offset = 0
@@ -355,22 +344,9 @@ class CryptoWorker:
         if self.progress_callback: self.progress_callback(100.0)
 
     def _encrypt_archive(self):
-        file_info = []
-        total_source_size = 0
-        for file_path in self._file_list:
-            if os.path.isfile(file_path):
-                size = os.path.getsize(file_path)
-                common_path = os.path.commonpath(self._file_list) if len(self._file_list) > 1 else os.path.dirname(file_path)
-                rel_path = os.path.relpath(file_path, common_path)
-                file_info.append((file_path, rel_path, size))
-                total_source_size += size
-        archive_header_data = bytearray()
-        archive_header_data.extend(struct.pack("!I", len(file_info)))
-        for _, rel_path, file_size in file_info:
-            rel_path_bytes = rel_path.encode("utf-8")
-            archive_header_data.extend(struct.pack("!I", len(rel_path_bytes)))
-            archive_header_data.extend(rel_path_bytes)
-            archive_header_data.extend(struct.pack("!Q", file_size))
+        archive_header, file_info, total_source_size = create_archive(self._file_list)
+        if self.progress_callback:
+            self.progress_callback(5.0)
         effective_compression_level = self.compression_level
         salt = os.urandom(SALT_SIZE)
         kdf_type = KDF_ID_ARGON2 if self.use_argon2 else KDF_ID_PBKDF2
@@ -381,7 +357,7 @@ class CryptoWorker:
         encrypted_ext = aesgcm.encrypt(ext_nonce, original_ext, None)
         if self.new_name_type == "hash":
             hasher = hashlib.sha256()
-            hasher.update(archive_header_data)
+            hasher.update(archive_header)
             for file_path, _, _ in file_info:
                 with open(file_path, "rb") as f:
                     while True:
@@ -399,9 +375,9 @@ class CryptoWorker:
         else:
             base_name = os.path.splitext(os.path.basename(self._file_list[0]))[0]
             out_filename = f"{base_name}_archive.{self.custom_ext}"
-            self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)            
+            self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
         if os.path.exists(self.out_path):
-            raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")          
+            raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")
         rs_codec = reedsolo.RSCodec(ECC_BYTES) if self.add_recovery_data else None
         with open(self.out_path, "wb") as outfile:
             outfile.write(MAGIC_NUMBER)
@@ -409,75 +385,107 @@ class CryptoWorker:
             flags = FLAG_RECOVERY_DATA if self.add_recovery_data else 0
             flags |= FLAG_ARCHIVE_MODE
             outfile.write(struct.pack("!B", flags))
-            outfile.write(struct.pack("!B", kdf_type))  # Write KDF type
+            outfile.write(struct.pack("!B", kdf_type))
             compression_id_pos = outfile.tell()
             outfile.write(struct.pack("!B", COMPRESSION_NONE))
             if self.add_recovery_data:
                 outfile.write(struct.pack("!B", ECC_BYTES))
-            
-            # Write KDF parameters based on type
             if kdf_type == KDF_ID_ARGON2:
                 outfile.write(struct.pack("!I", self.argon2_time_cost))
                 outfile.write(struct.pack("!I", self.argon2_memory_cost))
                 outfile.write(struct.pack("!I", self.argon2_parallelism))
             else:
                 outfile.write(struct.pack("!I", self.kdf_iterations))
-                
             outfile.write(salt)
             outfile.write(ext_nonce)
             outfile.write(struct.pack("!I", len(encrypted_ext)))
-            outfile.write(encrypted_ext)            
+            outfile.write(encrypted_ext)
             first_chunk = True
             final_compression_id = COMPRESSION_NONE
             processed_size = 0
-            all_data = bytearray(archive_header_data)
-            for file_path, _, _ in file_info:
-                with open(file_path, "rb") as f:
-                    all_data.extend(f.read())
-            if effective_compression_level != "none" and len(all_data) > self.chunk_size * 4:
-                chunk_futures = []
-                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                    offset = 0
-                    while offset < len(all_data):
-                        if self.is_canceled: raise Exception("Operation canceled by user.")
-                        chunk_size = min(self.chunk_size, len(all_data) - offset)
-                        chunk_data = bytes(all_data[offset:offset + chunk_size])
-                        future = executor.submit(compress_chunk_threaded, chunk_data, effective_compression_level)
-                        chunk_futures.append((future, offset, chunk_size))
-                        offset += chunk_size
-                    for future, chunk_offset, chunk_len in chunk_futures:
-                        if self.is_canceled: raise Exception("Operation canceled by user.")
-                        compressed_chunk, compression_id = future.result()
-                        if first_chunk:
-                            final_compression_id = compression_id
-                            current_pos = outfile.tell()
-                            outfile.seek(compression_id_pos)
-                            outfile.write(struct.pack("!B", final_compression_id))
-                            outfile.seek(current_pos)
-                            first_chunk = False               
-                        if final_compression_id == COMPRESSION_NONE:
-                            compressed_chunk = bytes(all_data[chunk_offset:chunk_offset + chunk_len])
-                        elif compression_id == COMPRESSION_NONE:
-                            mode = COMPRESSION_MODES[effective_compression_level]
-                            original_chunk = bytes(all_data[chunk_offset:chunk_offset + chunk_len])
-                            compressed_chunk = mode["func"](original_chunk)                  
-                        chunk_nonce = os.urandom(NONCE_SIZE)
-                        encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)                
-                        outfile.write(chunk_nonce)
-                        outfile.write(struct.pack("!I", len(encrypted_chunk)))
-                        outfile.write(encrypted_chunk)               
-                        if rs_codec:
-                            parity = rs_codec.encode(encrypted_chunk)[-ECC_BYTES:]
-                            outfile.write(parity)               
-                        processed_size += chunk_len
-                        if self.progress_callback:
-                            self.progress_callback(min(100.0, (processed_size / len(all_data)) * 100))
-            else:
-                offset = 0
-                while offset < len(all_data):
-                    if self.is_canceled: raise Exception("Operation canceled by user.")
-                    chunk_size = min(self.chunk_size, len(all_data) - offset)
-                    chunk = bytes(all_data[offset:offset + chunk_size])
+            def data_stream():
+                yield archive_header
+                for file_path, _, _ in file_info:
+                    if self.is_canceled:
+                        raise Exception("Operation canceled by user.")
+                    with open(file_path, "rb") as f:
+                        while True:
+                            chunk = f.read(self.chunk_size)
+                            if not chunk:
+                                break
+                            yield chunk
+            chunk_batch = []
+            batch_size = self.max_workers * 2
+            for chunk_data in data_stream():
+                if self.is_canceled:
+                    raise Exception("Operation canceled by user.")
+                chunk_batch.append(chunk_data)
+                if len(chunk_batch) >= batch_size or (effective_compression_level == "none"):
+                    if effective_compression_level != "none" and len(chunk_batch) > 1:
+                        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                            futures = [executor.submit(compress_chunk_threaded, chunk, effective_compression_level) for chunk in chunk_batch]
+                            for future in futures:
+                                if self.is_canceled:
+                                    raise Exception("Operation canceled by user.")
+                                compressed_chunk, compression_id = future.result()
+                                if first_chunk:
+                                    final_compression_id = compression_id
+                                    current_pos = outfile.tell()
+                                    outfile.seek(compression_id_pos)
+                                    outfile.write(struct.pack("!B", final_compression_id))
+                                    outfile.seek(current_pos)
+                                    first_chunk = False
+                                if final_compression_id == COMPRESSION_NONE and compression_id != COMPRESSION_NONE:
+                                    compressed_chunk = decompress_chunk(compressed_chunk, compression_id)
+                                elif final_compression_id != COMPRESSION_NONE and compression_id == COMPRESSION_NONE:
+                                    mode = COMPRESSION_MODES[effective_compression_level]
+                                    compressed_chunk = mode["func"](compressed_chunk)
+                                chunk_nonce = os.urandom(NONCE_SIZE)
+                                encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)
+                                outfile.write(chunk_nonce)
+                                outfile.write(struct.pack("!I", len(encrypted_chunk)))
+                                outfile.write(encrypted_chunk)
+                                if rs_codec:
+                                    parity = rs_codec.encode(encrypted_chunk)[-ECC_BYTES:]
+                                    outfile.write(parity)
+                                processed_size += len(chunk_data)
+                                if self.progress_callback:
+                                    progress = 5.0 + (processed_size / (len(archive_header) + total_source_size)) * 95.0
+                                    self.progress_callback(min(100.0, progress))
+                    else:
+                        for chunk in chunk_batch:
+                            if self.is_canceled:
+                                raise Exception("Operation canceled by user.")
+                            compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
+                            if first_chunk:
+                                final_compression_id = compression_id
+                                current_pos = outfile.tell()
+                                outfile.seek(compression_id_pos)
+                                outfile.write(struct.pack("!B", final_compression_id))
+                                outfile.seek(current_pos)
+                                first_chunk = False
+                            if final_compression_id == COMPRESSION_NONE:
+                                compressed_chunk = chunk
+                            elif compression_id == COMPRESSION_NONE:
+                                mode = COMPRESSION_MODES[effective_compression_level]
+                                compressed_chunk = mode["func"](chunk)
+                            chunk_nonce = os.urandom(NONCE_SIZE)
+                            encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)
+                            outfile.write(chunk_nonce)
+                            outfile.write(struct.pack("!I", len(encrypted_chunk)))
+                            outfile.write(encrypted_chunk)
+                            if rs_codec:
+                                parity = rs_codec.encode(encrypted_chunk)[-ECC_BYTES:]
+                                outfile.write(parity)
+                            processed_size += len(chunk)
+                            if self.progress_callback:
+                                progress = 5.0 + (processed_size / (len(archive_header) + total_source_size)) * 95.0
+                                self.progress_callback(min(100.0, progress))
+                    chunk_batch.clear()
+            if chunk_batch:
+                for chunk in chunk_batch:
+                    if self.is_canceled:
+                        raise Exception("Operation canceled by user.")
                     compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
                     if first_chunk:
                         final_compression_id = compression_id
@@ -485,25 +493,26 @@ class CryptoWorker:
                         outfile.seek(compression_id_pos)
                         outfile.write(struct.pack("!B", final_compression_id))
                         outfile.seek(current_pos)
-                        first_chunk = False               
+                        first_chunk = False
                     if final_compression_id == COMPRESSION_NONE:
                         compressed_chunk = chunk
                     elif compression_id == COMPRESSION_NONE:
                         mode = COMPRESSION_MODES[effective_compression_level]
-                        compressed_chunk = mode["func"](chunk)                  
+                        compressed_chunk = mode["func"](chunk)
                     chunk_nonce = os.urandom(NONCE_SIZE)
-                    encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)                
+                    encrypted_chunk = aesgcm.encrypt(chunk_nonce, compressed_chunk, None)
                     outfile.write(chunk_nonce)
                     outfile.write(struct.pack("!I", len(encrypted_chunk)))
-                    outfile.write(encrypted_chunk)               
+                    outfile.write(encrypted_chunk)
                     if rs_codec:
                         parity = rs_codec.encode(encrypted_chunk)[-ECC_BYTES:]
-                        outfile.write(parity)               
-                    processed_size += chunk_size
-                    offset += chunk_size
+                        outfile.write(parity)
+                    processed_size += len(chunk)
                     if self.progress_callback:
-                        self.progress_callback(min(100.0, (processed_size / len(all_data)) * 100))                 
-        if self.progress_callback: self.progress_callback(100.0)
+                        progress = 5.0 + (processed_size / (len(archive_header) + total_source_size)) * 95.0
+                        self.progress_callback(min(100.0, progress))
+        if self.progress_callback:
+            self.progress_callback(100.0)
 
     def decrypt_file(self):
         with open(self.in_path, "rb") as infile:
@@ -704,8 +713,7 @@ class BatchProcessorThread(QThread):
                         compression_level=self.compression_level, archive_mode=self.archive_mode,
                         use_argon2=self.use_argon2, argon2_time_cost=self.argon2_time_cost,
                         argon2_memory_cost=self.argon2_memory_cost, argon2_parallelism=self.argon2_parallelism,
-                        progress_callback=lambda p: self.progress_updated.emit(p)
-                    )
+                        progress_callback=lambda p: self.progress_updated.emit(p))
                     if self.operation == "encrypt": 
                         self.worker.encrypt_file()
                     elif self.operation == "decrypt": 
@@ -717,7 +725,19 @@ class BatchProcessorThread(QThread):
 
     def cancel(self):
         self.is_canceled = True
-        if self.worker:
-            self.worker.cancel()
+        if self.password:
+            if self.secure_clear:
+                pwd_bytes = self.password.encode("utf-8")
+                pwd_buffer = ctypes.create_string_buffer(len(pwd_bytes))
+                pwd_buffer.raw = pwd_bytes
+                clear_buffer(pwd_buffer)
+            self.password = None
+        if hasattr(self, 'out_path') and self.out_path and os.path.exists(self.out_path):
+            try:
+                import time
+                time.sleep(0.1)
+                os.remove(self.out_path)
+            except Exception:
+                pass
 
 ## end

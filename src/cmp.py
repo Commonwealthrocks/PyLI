@@ -1,5 +1,5 @@
 # cmp.py
-## last updated: 18/09/2025 <d/m/y>
+## last updated: 21/09/2025 <d/m/y>
 ## p-y-l-i
 import os
 import sys
@@ -27,7 +27,7 @@ DECOMPRESSION_FUNCS = {
     COMPRESSION_LZMA_ULTRAKILL: lzma.decompress,
 }
 SKIP_COMPRESSION_EXTS = {
-   ## ".zip", ".rar", ".7z", ".gz", ".bz2", ".xz", ".lzma",
+    ".zip", ".rar", ".7z", ".gz", ".bz2", ".xz", ".lzma",
     ".flac", ".ogg", ".mp3", ".aac", ".opus",
     ".mp4", ".mkv", ".avi", ".mov", ".webm",
     ".jpg", ".jpeg", ".png", ".gif", ".webp",

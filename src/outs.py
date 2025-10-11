@@ -1,13 +1,30 @@
 ## outs.py
-## last updated: 18/09/2025 <d/m/y>
+## last updated: 11/10/2025 <d/m/y>
 ## p-y-l-i
 import os
 import ctypes
 import sys
+import re
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtCore import Signal as pyqtSignal
+
+def enable_win_dark_mode(widget):
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            hwnd = int(widget.winId())
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            value = wintypes.DWORD(1)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
+        except:
+            pass
+
+def strip_ansi_codes(text):
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 class CustomDialog(QDialog):
     def __init__(self, title, message, parent=None):
@@ -16,18 +33,7 @@ class CustomDialog(QDialog):
         self.setFixedSize(400, 200)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.setStyleSheet("QTextEdit { background-color: #3C3C3C; color: #E0E0E0; border: 1px solid #5A5A5A; }")
-        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
-            QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                from ctypes import wintypes
-                hwnd = int(self.winId())
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                value = wintypes.DWORD(1)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
-            except:
-                pass
+        enable_win_dark_mode(self)
         layout = QVBoxLayout(self)
         self.message_label = QLabel(title)
         self.message_label.setStyleSheet("font-weight: bold; font-size: 12pt;")
@@ -48,18 +54,7 @@ class ErrorExportDialog(QDialog):
         self.setFixedSize(500, 300)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.setStyleSheet("QTextEdit { background-color: #3C3C3C; color: #E0E0E0; border: 1px solid #5A5A5A; }")
-        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
-            QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                from ctypes import wintypes
-                hwnd = int(self.winId())
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                value = wintypes.DWORD(1)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
-            except:
-                pass
+        enable_win_dark_mode(self)
         self.errors = errors
         layout = QVBoxLayout(self)
         self.message_label = QLabel(title)
@@ -107,18 +102,7 @@ class ProgressDialog(QDialog):
         self.file_progress_bar.setValue(0)        
         button_layout = QHBoxLayout()
         self.cancel_button = QPushButton("Cancel")
-        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
-            QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                from ctypes import wintypes
-                hwnd = int(self.winId())
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                value = wintypes.DWORD(1)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
-            except:
-                pass
+        enable_win_dark_mode(self)
         self.cancel_button.clicked.connect(self.cancel_operation)
         button_layout.addStretch()
         button_layout.addWidget(self.cancel_button)
@@ -138,6 +122,36 @@ class ProgressDialog(QDialog):
         if total > 0:
             self.batch_progress_bar.setValue(int((current / total) * 100))
 
+class CustomArgon2Dialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Argon2ID memory cost :)")
+        self.setModal(True)
+        self.selected_value = 0
+        self.setFixedSize(400, 230)
+        main_layout = QVBoxLayout(self)
+        info_label = QLabel("Choose an Argon2ID memory preset based on how fucking afraid you are:")
+        info_label.setWordWrap(True)
+        main_layout.addWidget(info_label)
+        presets = {
+            "Interactive (fast)": 1024,
+            "Sensitive (balanced)": 65536,
+            "Paranoid (reaaaaally slow)": 262144,
+            "ULTRAKILL (what are you hiding?)": 524288
+        }       
+        for name, value in presets.items():
+            button = QPushButton(f"{name} - {value:,} KB ({value // 1024} MB)")
+            button.clicked.connect(lambda checked, v=value: self.set_preset(v))
+            main_layout.addWidget(button)
+        cancel_button = QPushButton("Cancel")
+        enable_win_dark_mode(self)
+        cancel_button.clicked.connect(self.reject)
+        main_layout.addWidget(cancel_button)
+
+    def set_preset(self, value):
+        self.selected_value = value
+        self.accept()
+
 class DebugConsole(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -149,18 +163,7 @@ class DebugConsole(QDialog):
         self.output_view = QTextEdit()
         self.output_view.setReadOnly(True)
         self.output_view.setStyleSheet("font-family: 'Consolas', 'Monaco', monospace; background-color: #1E1E1E; color: #E0E0E0;")
-        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
-            QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                from ctypes import wintypes
-                hwnd = int(self.winId())
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                value = wintypes.DWORD(1)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
-            except:
-                pass
+        enable_win_dark_mode(self)
         self.input_line = QLineEdit()
         self.input_line.setPlaceholderText("Enter command (e.g., ?help)...")
         self.input_line.returnPressed.connect(self.process_command)
@@ -169,8 +172,9 @@ class DebugConsole(QDialog):
         self.setLayout(layout)
 
     def append_text(self, text):
+        clean_text = strip_ansi_codes(text)
         self.output_view.moveCursor(QTextCursor.End)
-        self.output_view.insertPlainText(text)
+        self.output_view.insertPlainText(clean_text)
         self.output_view.moveCursor(QTextCursor.End)
 
     def process_command(self):
@@ -180,7 +184,7 @@ class DebugConsole(QDialog):
         if not command:
             return
         if not command.startswith("?"):
-            self.append_text("Error: Unknown command. Commands must start with '?'.\n")
+            self.append_text("[ERROR] Unknown command. Commands must start with '?'.\n")
             return
         parts = command.split()
         cmd = parts[0]
@@ -198,7 +202,7 @@ class DebugConsole(QDialog):
         elif cmd == "?cls":
             self.output_view.clear()
         else:
-            self.append_text(f"Error: Unknown command '{cmd}'. Type '?help' for a list of commands.\n")
+            self.append_text(f"[ERROR] Unknown command '{cmd}'. Type '?help' for a list of commands.\n")
 
     def check_memory_clearing(self):
         from sm import clear_buffer, isca
@@ -224,7 +228,7 @@ class DebugConsole(QDialog):
 
     def test_sound_effect(self, args):
         if not args:
-            self.append_text("Error: Missing argument. Usage: ?test_sfx [sound_name]\n")
+            self.append_text("[ERROR] Missing argument. Usage: ?test_sfx [sound_name]\n")
             return
         sound_name = args[0]
         self.append_text(f"Attempting to play sound: {sound_name}\n")
@@ -232,7 +236,7 @@ class DebugConsole(QDialog):
             self.parent_app.sound_manager.play_sound(sound_name)
             self.append_text("Play command sent. Check your audio output.\n")
         else:
-            self.append_text("Error: Sound manager not found.\n")
+            self.append_text("[ERROR] Sound manager not found.\n")
 
     def closeEvent(self, event):
         self.hide()

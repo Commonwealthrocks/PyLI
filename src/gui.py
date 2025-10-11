@@ -1,6 +1,9 @@
 ## gui.py
-## last updated: 19/9/2025 <d/m/y>
+## last updated: 11/10/2025 <d/m/y>
 ## p-y-l-i
+## libs: pip install PySide6 cryptography pygame reedsolo zstandard pyzstd argon2-cffi
+## compile (gcc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
+## compile (msvc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
 import os
 import sys
 import ctypes
@@ -16,10 +19,15 @@ try:
     print(Fore.GREEN + "[DEV PRINT] Argon2ID is available; dr2" + Style.RESET_ALL)
 except ImportError:
     ARGON2_AVAILABLE = False
+try:
+    from zxcvbn import zxcvbn
+    ZXCVBN_AVAILABLE = True
+except ImportError:
+    ZXCVBN_AVAILABLE = False
 
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
-from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole
+from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole, CustomArgon2Dialog, enable_win_dark_mode
 from sfx import SoundManager
 from sm import isca
 
@@ -65,18 +73,7 @@ class PyLI(QWidget):
         self.setFixedSize(500, 380)
         self.setStyleSheet(STYLE_SHEET)
         self.setAcceptDrops(True)
-        if hasattr(Qt, "AA_DontCreateNativeWidgetSiblings"):
-            QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                from ctypes import wintypes
-                hwnd = int(self.winId())
-                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-                value = wintypes.DWORD(1)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
-            except:
-                pass
+        enable_win_dark_mode(self)
         self.files_to_process = []
         self.custom_ext = "dat"
         self.output_dir = ""
@@ -118,11 +115,11 @@ class PyLI(QWidget):
 
     def init_debug_console(self):
         if self.is_admin:
-            VER = "1.0"
+            VER = "1.1"
             self.debug_console = DebugConsole(parent=self)
-            print("--- PyLI debug console Initialized (Administrator) ---")
+            print("--- PyLI debug console initialized (Administrator) ---")
             print(f"--- Version: {VER} ---")
-            print(f"--- Argon2 Available: {ARGON2_AVAILABLE} ---")
+            print(f"--- Argon2 available: {ARGON2_AVAILABLE} ---")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_0 and event.modifiers() == Qt.AltModifier:
@@ -131,8 +128,9 @@ class PyLI(QWidget):
                     self.debug_console.hide()
                 else:
                     self.debug_console.show()
-        else:
-            super().keyPressEvent(event)
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     def get_config_path(self):
         if sys.platform == "win32":
@@ -213,10 +211,61 @@ class PyLI(QWidget):
         input_group.setLayout(input_layout)
         password_group = QGroupBox("Encryption / decryption password")
         password_layout = QVBoxLayout()
+        password_field_layout = QHBoxLayout()
         self.password_field = QLineEdit()
         self.password_field.setEchoMode(QLineEdit.Password)
         self.password_field.setPlaceholderText("Enter password")
-        password_layout.addWidget(self.password_field)
+        self.peek_button = QPushButton("S")
+        self.peek_button.setFixedSize(50, 25)
+        self.peek_button.setCheckable(True)
+        self.peek_button.setToolTip("Show / hide password")
+        self.peek_button.toggled.connect(self.toggle_password_visibility)
+        self.peek_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4A4A4A;
+                border: 1px solid #757575;
+                color: #E0E0E0;
+                font-size: 9pt;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #555555;
+            }
+            QPushButton:checked {
+                background-color: #3D3D3D;
+                border: 1px solid #666666;
+            }
+        """)
+        password_field_layout.addWidget(self.password_field)
+        password_field_layout.addWidget(self.peek_button)
+        password_layout.addLayout(password_field_layout)
+        if ZXCVBN_AVAILABLE:
+            self.strength_bar = QProgressBar()
+            self.strength_bar.setRange(0, 4)
+            self.strength_bar.setValue(0)
+            self.strength_bar.setTextVisible(False)
+            self.strength_bar.setFixedHeight(10)
+            self.strength_bar.setStyleSheet("""
+                QProgressBar {
+                    border: 1px solid #5A5A5A;
+                    background-color: #3C3C3C;
+                    border-radius: 3px;
+                    margin-top: 2px;
+                }
+                QProgressBar::chunk {
+                    background-color: #FF4444;
+                    border-radius: 2px;
+                }
+            """)
+            self.strength_label = QLabel("Password strength: X")
+            self.strength_label.setStyleSheet("color: #888888; font-size: 9pt; margin-top: 2px;")
+            self.strength_label.setWordWrap(True)
+            password_layout.addWidget(self.strength_bar)
+            password_layout.addWidget(self.strength_label)
+            self.password_field.textChanged.connect(self.update_password_strength)
+        else:
+            self.strength_bar = None
+            self.strength_label = None
         password_group.setLayout(password_layout)
         button_layout = QHBoxLayout()
         self.encrypt_button = QPushButton("Encrypt")
@@ -402,31 +451,9 @@ class PyLI(QWidget):
         return advanced_tab
 
     def show_argon2_presets(self):
-        presets = {
-            "Interactive (fast)": 1024,
-            "Sensitive (balanced)": 65536,
-            "Paranoid (slow)": 262144,
-            "ULTRAKILL (very slow)": 524288 
-        }
-        preset_dialog = QDialog(self)
-        preset_dialog.setWindowTitle("Argon2ID memory cost presets")
-        preset_dialog.setModal(True)
-        layout = QVBoxLayout(preset_dialog)
-        info_label = QLabel("Choose an Argon2ID memory preset based on how fucking afraid you are:")
-        info_label.setWordWrap(True)
-        layout.addWidget(info_label)
-        for name, value in presets.items():
-            button = QPushButton(f"{name} - {value:,} KB ({value//1024} MB)")
-            button.clicked.connect(lambda checked, v=value: self.set_argon2_memory_preset(v, preset_dialog))
-            layout.addWidget(button)
-        cancel_button = QPushButton("Cancel")
-        cancel_button.clicked.connect(preset_dialog.reject)
-        layout.addWidget(cancel_button)
-        preset_dialog.exec()
-    
-    def set_argon2_memory_preset(self, value, dialog):
-        self.argon2_memory_spinbox.setValue(value)
-        dialog.accept()
+        dialog = CustomArgon2Dialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            self.argon2_memory_spinbox.setValue(dialog.selected_value)
 
     def create_settings_tab(self):
         settings_tab = QWidget()
@@ -473,7 +500,7 @@ class PyLI(QWidget):
         disclaimer_label = QLabel(disclaimer_text)
         disclaimer_label.setWordWrap(True)
         disclaimer_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        disclaimer_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 5px; line-height: 1.4;")
+        disclaimer_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 0px; line-height: 1.4;")
         scroll_area.setWidget(disclaimer_label)
         disclaimer_layout.addWidget(info_label)
         disclaimer_layout.addWidget(subtitle_label)
@@ -493,7 +520,7 @@ class PyLI(QWidget):
         info_label = QLabel(info_text)
         info_label.setWordWrap(True)
         info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        info_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 5px; line-height: 1.4; font-family: 'Consolas', 'Monaco', monospace;")
+        info_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 0px; line-height: 1.4; font-family: 'Consolas', 'Monaco', monospace;")
         scroll_area.setWidget(info_label)
         info_layout.addWidget(title_label)
         info_layout.addWidget(scroll_area)
@@ -512,7 +539,7 @@ class PyLI(QWidget):
         log_label = QLabel(log_text)
         log_label.setWordWrap(True)
         log_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        log_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 5px; line-height: 1.4; font-family: 'Consolas', 'Monaco', monospace;")
+        log_label.setStyleSheet("font-size: 9pt; padding: 15px; border: 1px solid #666; background-color: #2A2A2A; border-radius: 0px; line-height: 1.4; font-family: 'Consolas', 'Monaco', monospace;")
         scroll_area.setWidget(log_label)
         log_layout.addWidget(title_label)
         log_layout.addWidget(scroll_area)
@@ -520,8 +547,10 @@ class PyLI(QWidget):
 
     def load_disclaimer(self):
         try:
-            if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "disclaimer.txt")
-            else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "disclaimer.txt")
+            if getattr(sys, "frozen", False):
+                disclaimer_path = os.path.join(sys._MEIPASS, "txts", "disclaimer.txt")
+            else:
+                disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "disclaimer.txt")
             with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
         except Exception: return "Disclaimer file not found."
 
@@ -623,6 +652,86 @@ class PyLI(QWidget):
         self.batch_processor.progress_updated.connect(lambda p: self.progress_dialog.file_progress_bar.setValue(int(p)))
         self.batch_processor.finished.connect(self.on_batch_finished)
         self.batch_processor.start()
+    
+    def toggle_password_visibility(self, checked):
+        if checked:
+            self.password_field.setEchoMode(QLineEdit.Normal)
+            self.peek_button.setText("H")
+        else:
+            self.password_field.setEchoMode(QLineEdit.Password)
+            self.peek_button.setText("S")
+
+    def update_password_strength(self, password):
+        if not ZXCVBN_AVAILABLE or not self.strength_bar:
+            return
+        if not password:
+            self.strength_bar.setValue(0)
+            self.strength_bar.setStyleSheet("""
+                QProgressBar {
+                    border: 1px solid #5A5A5A;
+                    background-color: #3C3C3C;
+                    border-radius: 3px;
+                }
+                QProgressBar::chunk {
+                    background-color: #FF4444;
+                    border-radius: 2px;
+                }""")
+            self.strength_label.setText("Password strength: X")
+            self.strength_label.setStyleSheet("color: #888888; font-size: 9pt;")
+            return
+        if len(password) > 72:
+            self.strength_bar.setValue(4)
+            self.strength_bar.setStyleSheet("""
+                QProgressBar {
+                    border: 1px solid #5A5A5A;
+                    background-color: #3C3C3C;
+                    border-radius: 3px;
+                }
+                QProgressBar::chunk {
+                    background-color: #44DD44;
+                    border-radius: 2px;
+                }""")
+            self.strength_label.setText("Password strength: Strong (length: 72+ chars)")
+            self.strength_label.setStyleSheet("color: #44DD44; font-size: 9pt;")
+            return
+        result = zxcvbn(password)
+        score = result["score"]
+        self.strength_bar.setValue(score)
+        colors = {
+            0: ("#FF4444", "Really?"),
+            1: ("#FF8844", "Weak"),
+            2: ("#FFAA44", "Fair"),
+            3: ("#88DD44", "Good"),
+            4: ("#44DD44", "Strong")}
+        color, label = colors.get(score, ("#FF4444", "Really?"))
+        self.strength_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: 1px solid #5A5A5A;
+                background-color: #3C3C3C;
+                border-radius: 3px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {color};
+                border-radius: 2px;
+            }}""")
+        crack_time = result.get("crack_times_display", {}).get("offline_slow_hashing_1e4_per_second", "unknown")
+        status_text = f"Password strength: {label} (crack time: {crack_time})"
+        if score < 2:
+            warning = result.get("feedback", {}).get("warning", "")
+            if warning:
+                warning = warning.replace("This is a top-10 common password", "Common password")
+                warning = warning.replace("This is a top-100 common password", "Common password")
+                warning = warning.replace("This is similar to a commonly used password", "Similar to common")
+                warning = warning.replace("Straight rows of keys are easy to guess", "Keyboard pattern")
+                warning = warning.replace("Short keyboard patterns are easy to guess", "Keyboard pattern")
+                warning = warning.replace("Repeats like 'aaa' are easy to guess", "Repeated chars")
+                warning = warning.replace("Repeats like 'abcabcabc' are only slightly harder to guess than 'abc'", "Pattern repeat")
+                warning = warning.replace("Sequences like abc or 6543 are easy to guess", "Sequence")
+                warning = warning.replace("Recent years are easy to guess", "Contains year")
+                warning = warning.replace("Dates are often easy to guess", "Contains date")
+                status_text = f"{label} - {warning}"
+        self.strength_label.setText(status_text)
+        self.strength_label.setStyleSheet(f"color: {color}; font-size: 9pt;")
 
     def play_warning_sound(self):
         if not self.mute_sfx:

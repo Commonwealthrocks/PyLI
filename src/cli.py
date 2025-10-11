@@ -70,7 +70,7 @@ def cmd_encrypt(args):
             print("\nDone.")
         except Exception as e:
             errors.append(f"'{file_path}' failed: {e}")
-            print(Fore.RED + f"Error: {e}" + Style.RESET_ALL)
+            print(Fore.RED + f"[ERROR] {e}" + Style.RESET_ALL)
     clear_buffer(password)
     return errors
 
@@ -106,7 +106,7 @@ def cmd_decrypt(args):
             print("\nDone.")
         except Exception as e:
             errors.append(f"'{file_path}' failed: {e}")
-            print(Fore.RED + f"Error: {e}" + Style.RESET_ALL)
+            print(Fore.RED + f"[ERROR] {e}" + Style.RESET_ALL)
     clear_buffer(password)
     return errors
 
@@ -123,10 +123,10 @@ def cmd_archive(args):
             print(f"\nArchive created: {archive_name}")
         except Exception as e:
             errors.append(f"Archive creation failed: {e}")
-            print(Fore.RED + f"Error: {e}" + Style.RESET_ALL)
+            print(Fore.RED + f"[ERROR] {e}" + Style.RESET_ALL)
     elif args.operation == "extract":
         if len(args.path) != 1:
-            print(Fore.RED + "Error: 'extract' needs exactly one archive path." + Style.RESET_ALL)
+            print(Fore.RED + "[ERROR] 'extract' needs exactly one archive path." + Style.RESET_ALL)
             sys.exit(1)
         archive_path = args.path[0]
         extract_path = args.output or os.path.dirname(archive_path)
@@ -136,7 +136,7 @@ def cmd_archive(args):
             print(f"\nExtracted to: {extract_path}")
         except Exception as e:
             errors.append(f"Archive extraction failed: {e}")
-            print(Fore.RED + f"Error: {e}" + Style.RESET_ALL)
+            print(Fore.RED + f"[ERROR] {e}" + Style.RESET_ALL)
     clear_buffer(password)
     return errors
 
@@ -186,3 +186,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+## end
