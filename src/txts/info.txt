@@ -65,7 +65,7 @@ BUILD INFO:
 
 KNOWN LIMITATIONS:
 - No file shredding after encryption
-- Progress reporting could be more accurate for archives
+- Progress is more accurate I guess...
 - No key file support (password only)
 
 ## end
