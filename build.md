@@ -1,7 +1,7 @@
 ## PyLI 
 
 Build env-s0 for **PyLI**
-Latest version: `v1.0`
+Latest version: `v1.1`
 
 ## "What the fuck do I need?" *Well to build manually yourself you'd need...*
 - Python `3.10+` (tested on `3.12`)
@@ -39,14 +39,15 @@ The key thing to have would be a working OS... yeah I know it's crazy. Anywho un
 
 ### For **Python**
 ```bash
-python gui.py
+python -m gui
 ```
 
 ### C compiling with **nuitka** (recommended)
 ```bash
 pip install nuitka
-python -m nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
+python -m nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --mingw64 --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
 ```
+TLDR; If you use MSVC, remove the `--mingw64` argument  from the command
 
 ### Glorified zipfile (**PyInstaller**)
 ```bash
@@ -93,9 +94,9 @@ src
 - `--windows-disable-console`: hide console on Windows (optional)
 
 ## "What about the glorified zip builder?? (**PyInstaller**)" - *Also you probably don't care but here!!*
-- `--onefile`: Single executable file
-- `--windowed`: No console window
-- `--add-data`: Include data files (format: "source;destination")
+- `--onefile`: single executable file
+- `--windowed`: no console window
+- `--add-data`: include data files (format: "source;destination")
 
 ## "How do I know if PyLI is working right?" - *Oh I wonder, but do the following:*
 1. GUI loads without errors
@@ -118,9 +119,9 @@ src
 - **Source + libs**: ~200MB (**est.** ngl)
 
 ## Platform support - *Might or might not work on other OS's, find out ig...*
-- **Windows**: Full support including secure memory clearing
-- **Linux**: Core functionality works, secure memory may be disabled
-- **macOS**: Core functionality works, secure memory may be disabled  
+- **Windows**: full support including secure memory clearing
+- **Linux**: core functionality works, secure memory may be disabled
+- **macOS**: core functionality works, secure memory may be disabled  
 
 ## "I'm having issues while building it!!" - *Shame, but these are the most common issues I assume...*
 1. **Missing PySide6**: install with `pip install PySide6`
