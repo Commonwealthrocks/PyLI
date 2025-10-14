@@ -99,7 +99,7 @@ VERSION 1.0 - 18.09.2025 <d/m/y>
 - Fixed CLI mode being outdated slightly
 - Re-worked CLI mode; v1.0
 
-VERSION 1.1 - 11.10.2025 <d/m/y> [LATEST]
+VERSION 1.1 - 11.10.2025 <d/m/y>
 [PUBLIC BUILD]
 - Re-worked GUI style sheet
 - Fixed admin console not being able to be closed (esc)
@@ -109,6 +109,15 @@ VERSION 1.1 - 11.10.2025 <d/m/y> [LATEST]
 - Added secure safe for safe memory handling (best effort)
 - Added hide (H) and show (S) password option in main tab
 - Added password scoring with zxcvbn
+
+VERSION 1.2 - 14.10.2025 <d/m/y> [LATEST]
+[PUBLIC BUILD]
+- Added icons in the apps main tab
+- Added ChaCha20-Poly1305 AEAD encryption
+- Added C based AES-NI detection for Windows and Linux
+- Added SHA-256 and SHA-512 for PBKDF2
+- Refactored sm.py to be more centralized
+- Removed the old sm.py file
 
 That's all for now :)
 
