@@ -1,6 +1,6 @@
 ## outs.py
 ## last updated: 11/10/2025 <d/m/y>
-## p-y-l-i
+## p-y-l-i 
 import os
 import ctypes
 import sys
@@ -205,7 +205,7 @@ class DebugConsole(QDialog):
             self.append_text(f"[ERROR] Unknown command '{cmd}'. Type '?help' for a list of commands.\n")
 
     def check_memory_clearing(self):
-        from sm import clear_buffer, isca
+        from c_base import clear_buffer, isca
         import ctypes
         self.append_text("--- MCT ---\n")
         if not isca():

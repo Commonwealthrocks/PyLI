@@ -1,9 +1,9 @@
 ## gui.py
-## last updated: 11/10/2025 <d/m/y>
+## last updated: 14/10/2025 <d/m/y>
 ## p-y-l-i
 ## libs: pip install PySide6 cryptography pygame reedsolo zstandard pyzstd argon2-cffi
-## compile (gcc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
-## compile (msvc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so gui.py
+## compile (gcc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/spyware/chc_aes_ni.dll=c/spyware/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
+## compile (msvc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/spyware/chc_aes_ni.dll=c/spyware/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
 import os
 import sys
 import ctypes
@@ -29,7 +29,14 @@ from core import BatchProcessorThread
 from stylez import STYLE_SHEET
 from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole, CustomArgon2Dialog, enable_win_dark_mode
 from sfx import SoundManager
-from sm import isca
+from c_base import isca, check_aes_ni, aes_ni_aval
+
+def get_resource_path(relative_path):
+    if getattr(sys, "frozen", False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
 
 def is_admin():
     try:
@@ -81,10 +88,12 @@ class PyLI(QWidget):
         self.mute_sfx = False
         self.chunk_size_mb = 3
         self.kdf_iterations = 1000000
+        self.pbkdf2_hash = "sha-256"
         self.secure_clear = False
         self.add_recovery_data = False
         self.compression_level = "none"
         self.archive_mode = False
+        self.aead_algorithm = "aes-gcm"
         self.use_argon2 = False
         self.argon2_time_cost = 3
         self.argon2_memory_cost = 65536
@@ -99,6 +108,7 @@ class PyLI(QWidget):
         self.sound_manager.load_sound("success.wav")
         self.sound_manager.load_sound("error.wav")
         self.sound_manager.load_sound("info.wav")
+        self.has_aes_ni = check_aes_ni()
         self.is_admin = is_admin()
         self.debug_console = None
         self.init_debug_console()
@@ -115,11 +125,13 @@ class PyLI(QWidget):
 
     def init_debug_console(self):
         if self.is_admin:
-            VER = "1.1"
+            VER = "1.2"
             self.debug_console = DebugConsole(parent=self)
             print("--- PyLI debug console initialized (Administrator) ---")
             print(f"--- Version: {VER} ---")
-            print(f"--- Argon2 available: {ARGON2_AVAILABLE} ---")
+            print(f"--- Argon2ID available: {ARGON2_AVAILABLE} ---")
+            print(f"--- AES-NI C lib loaded: {aes_ni_aval()} ---")
+            print(f"--- CPU supports AES-NI: {self.has_aes_ni} ---")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_0 and event.modifiers() == Qt.AltModifier:
@@ -158,10 +170,12 @@ class PyLI(QWidget):
                 self.mute_sfx = config.get("mute_sfx", False)
                 self.chunk_size_mb = config.get("chunk_size_mb", 3)
                 self.kdf_iterations = config.get("kdf_iterations", 1000000)
+                self.pbkdf2_hash = config.get("pbkdf2_hash", "sha-256")
                 self.secure_clear = config.get("secure_clear", False)
                 self.add_recovery_data = config.get("add_recovery_data", False)
                 self.compression_level = config.get("compression_level", "none")
                 self.archive_mode = config.get("archive_mode", False)
+                self.aead_algorithm = config.get("aead_algorithm", "aes-gcm")
                 self.use_argon2 = config.get("use_argon2", False)
                 self.argon2_time_cost = config.get("argon2_time_cost", 3)
                 self.argon2_memory_cost = config.get("argon2_memory_cost", 65536)
@@ -184,10 +198,12 @@ class PyLI(QWidget):
             "mute_sfx": self.mute_sfx,
             "chunk_size_mb": self.chunk_size_mb,
             "kdf_iterations": self.kdf_iterations,
+            "pbkdf2_hash": self.pbkdf2_hash,
             "secure_clear": self.secure_clear,
             "add_recovery_data": self.add_recovery_data,
             "compression_level": self.compression_level,
             "archive_mode": self.archive_mode,
+            "aead_algorithm": self.aead_algorithm,
             "use_argon2": self.use_argon2,
             "argon2_time_cost": self.argon2_time_cost,
             "argon2_memory_cost": self.argon2_memory_cost,
@@ -204,10 +220,13 @@ class PyLI(QWidget):
         self.input_path_field = QLineEdit()
         self.input_path_field.setReadOnly(True)
         self.input_path_field.setPlaceholderText("Drag and drop file(s) or folder here...")
-        browse_button = QPushButton("Browse")
-        browse_button.clicked.connect(self.select_files)
+        self.browse_button = QPushButton("Browse")
+        icon_path = get_resource_path(os.path.join("img", "browse_img.png"))
+        self.browse_button.setIcon(QIcon(icon_path))
+        self.browse_button.setIconSize(QSize (20, 20))
+        self.browse_button.clicked.connect(self.select_files)
         input_layout.addWidget(self.input_path_field)
-        input_layout.addWidget(browse_button)
+        input_layout.addWidget(self.browse_button)
         input_group.setLayout(input_layout)
         password_group = QGroupBox("Encryption / decryption password")
         password_layout = QVBoxLayout()
@@ -215,7 +234,10 @@ class PyLI(QWidget):
         self.password_field = QLineEdit()
         self.password_field.setEchoMode(QLineEdit.Password)
         self.password_field.setPlaceholderText("Enter password")
-        self.peek_button = QPushButton("S")
+        self.peek_button = QPushButton()
+        icon_path = get_resource_path(os.path.join("img", "show_pass_img.png"))
+        self.peek_button.setIcon(QIcon(icon_path))
+        self.peek_button.setIconSize(QSize(32, 32))
         self.peek_button.setFixedSize(50, 25)
         self.peek_button.setCheckable(True)
         self.peek_button.setToolTip("Show / hide password")
@@ -269,8 +291,14 @@ class PyLI(QWidget):
         password_group.setLayout(password_layout)
         button_layout = QHBoxLayout()
         self.encrypt_button = QPushButton("Encrypt")
+        icon_path = get_resource_path(os.path.join("img", "encrypt_img.png"))
+        self.encrypt_button.setIcon(QIcon(icon_path))
+        self.encrypt_button.setIconSize(QSize(20, 20))
         self.encrypt_button.clicked.connect(lambda: self.start_operation("encrypt"))
         self.decrypt_button = QPushButton("Decrypt")
+        icon_path = get_resource_path(os.path.join("img", "decrypt_img.png"))
+        self.decrypt_button.setIcon(QIcon(icon_path))
+        self.decrypt_button.setIconSize(QSize(20, 20))
         self.decrypt_button.clicked.connect(lambda: self.start_operation("decrypt"))
         button_layout.addWidget(self.encrypt_button)
         button_layout.addWidget(self.decrypt_button)
@@ -334,12 +362,12 @@ class PyLI(QWidget):
     def handle_argon2_checkbox(self, state):
         if state and not ARGON2_AVAILABLE:
             self.play_warning_sound()
-            dialog = CustomDialog("Argon2 not available", "Argon2 library is not installed. Please install it with:\npip install argon2-cffi\n\nUsing PBKDF2 as fallback.", self)
+            dialog = CustomDialog("Argon2ID not available", "Argon2ID library is not installed. Please install it with:\npip install argon2-cffi\n\nUsing PBKDF2 as fallback.", self)
             dialog.exec()
             self.use_argon2_checkbox.setChecked(False)
         elif state:
             self.play_warning_sound()
-            dialog = CustomDialog("Argon2 info", "Argon2 is the modern standard for password hashing and offers better security than PBKDF2.\n\nIt may be slightly slower but provides better protection against GPU attacks.", self)
+            dialog = CustomDialog("Argon2ID info", "Argon2ID is the modern standard for password hashing and offers better security than PBKDF2.\n\nIt may be slightly slower but provides better protection against GPU attacks.", self)
             dialog.exec()
 
     def check_ultrakill_warning(self, text):
@@ -364,6 +392,20 @@ class PyLI(QWidget):
         """)
         content_widget = QWidget()
         layout = QVBoxLayout(content_widget)
+        encryption_group = QGroupBox("Encryption")
+        encryption_layout = QFormLayout()
+        self.aead_combo = QComboBox()
+        self.aead_combo.addItems(["AES-256-GCM", "ChaCha20-Poly1305"])
+        aead_map = {"aes-gcm": "AES-256-GCM", "chacha20-poly1305": "ChaCha20-Poly1305"}
+        self.aead_combo.setCurrentText(aead_map.get(self.aead_algorithm, "AES-256-GCM"))
+        self.aead_combo.setToolTip("Choose the encryption algorithm.\nAES-GCM is faster on CPUs with AES-NI support.\nChaCha20-Poly1305 is a modern and secure alternative.")
+        self.aead_combo.currentTextChanged.connect(self.update_aead_warning)
+        encryption_layout.addRow("AEAD algorithm:", self.aead_combo)
+        self.aes_ni_warning_label = QLabel("Warning: your CPU supports AES-NI, making AES-GCM significantly faster.")
+        self.aes_ni_warning_label.setStyleSheet("color: #FFA500; font-size: 8pt;")
+        self.aes_ni_warning_label.setWordWrap(True)
+        encryption_layout.addRow(self.aes_ni_warning_label)
+        encryption_group.setLayout(encryption_layout)
         kdf_group = QGroupBox("Key derivation function (KDF)")
         kdf_layout = QFormLayout()
         self.use_argon2_checkbox = QCheckBox()
@@ -371,7 +413,7 @@ class PyLI(QWidget):
         self.use_argon2_checkbox.stateChanged.connect(self.handle_argon2_checkbox)
         if not ARGON2_AVAILABLE:
             self.use_argon2_checkbox.setEnabled(False)
-            self.use_argon2_checkbox.setToolTip("Argon2 library not installed. Install with: pip install argon2-cffi")
+            self.use_argon2_checkbox.setToolTip("Argon2ID library not installed. Install with: pip install argon2-cffi")
         else:
             self.use_argon2_checkbox.setToolTip("Use Argon2 (modern, secure) instead of PBKDF2 for key derivation.\nArgon2 provides better protection against GPU attacks.")
         kdf_layout.addRow("Use Argon2ID:", self.use_argon2_checkbox)
@@ -380,12 +422,17 @@ class PyLI(QWidget):
         self.kdf_iterations_spinbox.setSingleStep(100000)
         self.kdf_iterations_spinbox.setValue(self.kdf_iterations)
         self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
-        self.kdf_iterations_spinbox.setToolTip("Number of iterations for PBKDF2 (only used when Argon2 is disabled)")
+        self.kdf_iterations_spinbox.setToolTip("Number of iterations for PBKDF2 (only used when Argon2ID is disabled)")
+        self.pbkdf2_hash_combo = QComboBox()
+        self.pbkdf2_hash_combo.addItems(["SHA-256", "SHA-512"])
+        self.pbkdf2_hash_combo.setCurrentText(self.pbkdf2_hash)
+        self.pbkdf2_hash_combo.currentTextChanged.connect(self.update_pbkdf2_hash)
+        kdf_layout.addRow("PBKDF2 hash type:", self.pbkdf2_hash_combo)
         kdf_layout.addRow("PBKDF2 iterations:", self.kdf_iterations_spinbox)
         self.argon2_time_spinbox = QSpinBox()
         self.argon2_time_spinbox.setRange(1, 20)
         self.argon2_time_spinbox.setValue(self.argon2_time_cost)
-        self.argon2_time_spinbox.setToolTip("Argon2 time cost (iterations).\n\nHigher = more secure but slower.\n\nDefault: 3")
+        self.argon2_time_spinbox.setToolTip("Argon2ID time cost (iterations).\n\nHigher = more secure but slower.\n\nDefault: 3")
         kdf_layout.addRow("Argon2 time cost:", self.argon2_time_spinbox)
         self.argon2_memory_spinbox = QSpinBox()
         self.argon2_memory_spinbox.setRange(1024, 1048576)
@@ -398,13 +445,13 @@ class PyLI(QWidget):
         argon2_memory_layout = QHBoxLayout()
         argon2_memory_layout.addWidget(self.argon2_memory_spinbox)
         argon2_memory_layout.addWidget(self.argon2_memory_cost_preset)
-        self.argon2_memory_spinbox.setToolTip("Argon2 memory usage in KB.\n\nHigher = more secure but uses more RAM. Default: 64MB")
-        kdf_layout.addRow("Argon2 memory cost:", argon2_memory_layout)
+        self.argon2_memory_spinbox.setToolTip("Argon2ID memory usage in KB.\n\nHigher = more secure but uses more RAM. Default: 64MB")
+        kdf_layout.addRow("Argon2ID memory cost:", argon2_memory_layout)
         self.argon2_parallelism_spinbox = QSpinBox()
         self.argon2_parallelism_spinbox.setRange(1, 16)
         self.argon2_parallelism_spinbox.setValue(self.argon2_parallelism)
         self.argon2_parallelism_spinbox.setToolTip("Argon2 parallelism (threads).\n\nShould match CPU cores.\n\nDefault: 4")
-        kdf_layout.addRow("Argon2 parallelism:", self.argon2_parallelism_spinbox)       
+        kdf_layout.addRow("Argon2ID parallelism:", self.argon2_parallelism_spinbox)       
         kdf_group.setLayout(kdf_layout)
         compression_group = QGroupBox("Compression")
         compression_layout = QFormLayout()
@@ -414,7 +461,7 @@ class PyLI(QWidget):
         current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
         self.compression_combo.setCurrentText(current_text)
         self.compression_combo.setToolTip("Compression makes (or tries) to make files smaller, if you want speed it is NOT recommended to use compression at all.")
-        compression_layout.addRow("Compression Level:", self.compression_combo)
+        compression_layout.addRow("Compression level:", self.compression_combo)
         compression_group.setLayout(compression_layout)
         security_group = QGroupBox("Security / data integrity")
         security_layout = QFormLayout()
@@ -441,14 +488,23 @@ class PyLI(QWidget):
         self.chunk_size_spinbox.setSuffix(" MB")
         performance_layout.addRow("Chunk size:", self.chunk_size_spinbox)
         performance_group.setLayout(performance_layout)
+        layout.addWidget(encryption_group)
         layout.addWidget(kdf_group)
         layout.addWidget(compression_group)
         layout.addWidget(security_group)
         layout.addWidget(performance_group)
         layout.addStretch()
+        self.update_aead_warning(self.aead_combo.currentText()) # Initial check
         scroll_area.setWidget(content_widget)
         main_layout.addWidget(scroll_area)
         return advanced_tab
+
+    def update_aead_warning(self, text):
+        show_warning = (text == "ChaCha20-Poly1305" and self.has_aes_ni)
+        if hasattr(self, 'aes_ni_warning_label'):
+            self.aes_ni_warning_label.setVisible(show_warning)
+            if show_warning and not self.mute_sfx:
+                self.sound_manager.play_sound("info.wav")
 
     def show_argon2_presets(self):
         dialog = CustomArgon2Dialog(self)
@@ -510,7 +566,7 @@ class PyLI(QWidget):
     def create_info_tab(self):
         info_widget = QWidget()
         info_layout = QVBoxLayout(info_widget)
-        title_label = QLabel("Technical Information")
+        title_label = QLabel("Technical information")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("font-size: 14pt; font-weight: bold; margin-bottom: 20px;")
         info_text = self.load_info()
@@ -570,6 +626,8 @@ class PyLI(QWidget):
 
     def update_settings(self):
         compression_mapping = {"None": "none", "Normal (fast)": "normal", "Best (slow-er)": "best", "ULTRAKILL (probably slow)": "ultrakill", "[L] ULTRAKILL (???)": "[L] ultrakill"}
+        aead_map_rev = {"AES-256-GCM": "aes-gcm", "ChaCha20-Poly1305": "chacha20-poly1305"}
+        self.aead_algorithm = aead_map_rev.get(self.aead_combo.currentText(), "aes-gcm")
         self.compression_level = compression_mapping[self.compression_combo.currentText()]
         self.custom_ext = self.custom_ext_field.text()
         self.output_dir = self.output_dir_field.text()
@@ -646,20 +704,33 @@ class PyLI(QWidget):
             compression_level=self.compression_level, archive_mode=self.archive_mode,
             use_argon2=self.use_argon2, argon2_time_cost=self.argon2_time_cost,
             argon2_memory_cost=self.argon2_memory_cost, argon2_parallelism=self.argon2_parallelism,
+            aead_algorithm=self.aead_algorithm,
             parent=self)
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
         self.batch_processor.status_message.connect(lambda msg: self.progress_dialog.file_label.setText(msg))
         self.batch_processor.progress_updated.connect(lambda p: self.progress_dialog.file_progress_bar.setValue(int(p)))
         self.batch_processor.finished.connect(self.on_batch_finished)
         self.batch_processor.start()
+
+    def update_aead_algorithm(self, text):
+        self.aead_algorithm = text.lower()
+        self.save_settings()
+
+    def update_pbkdf2_hash(self, text):
+        self.pbkdf2_hash = text.lower()
+        self.save_settings()
     
     def toggle_password_visibility(self, checked):
         if checked:
             self.password_field.setEchoMode(QLineEdit.Normal)
-            self.peek_button.setText("H")
+            icon_path = get_resource_path(os.path.join("img", "hide_pass_img.png"))
+            self.peek_button.setIcon(QIcon(icon_path))
+            self.peek_button.setIconSize(QSize(32, 32))
         else:
             self.password_field.setEchoMode(QLineEdit.Password)
-            self.peek_button.setText("S")
+            icon_path = get_resource_path(os.path.join("img", "show_pass_img.png"))
+            self.peek_button.setIcon(QIcon(icon_path))
+            self.peek_button.setIconSize(QSize(32, 32))
 
     def update_password_strength(self, password):
         if not ZXCVBN_AVAILABLE or not self.strength_bar:

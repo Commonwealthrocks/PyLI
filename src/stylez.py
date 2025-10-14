@@ -1,6 +1,6 @@
 ## stylez.py
 ## last updated: 08/10/2025 <d/m/y>
-## p-y-l-i
+## p-y-l-i 
 STYLE_SHEET = """
 QWidget {
     font-family: 'MS Shell Dlg 2', 'Tahoma', 'Arial';
