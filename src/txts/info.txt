@@ -18,7 +18,7 @@ ULTRAKILL: zstandard level 22 (slow, best compression)
 [L] ULTRAKILL: Legacy LZMA preset 9 (REALLY damn slow)
 Auto skip: already compressed formats (jpg, mp4, etc.)
 
-FILE FORMAT STRUCTURE (v7):
+FILE FORMAT STRUCTURE (v8):
 Magic number: "PYLI\x00" (5 bytes)
 Format version: 7 (1 byte)
 AEAD Algorithm ID: 1=AES-GCM, 2=ChaCha20 (1 byte)
