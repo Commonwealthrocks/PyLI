@@ -1,4 +1,6 @@
 # **PyLI** - *Not harvesting your data since 2025!*
+**This is JOKE software, expect roughness or... about anything!**
+
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![C](https://img.shields.io/badge/-darkblue?logo=c&logoColor=white)
 ![ChaCha20-Poly1305](https://img.shields.io/badge/Encryption-ChaCha20--Poly1305-green?logo=lock&logoColor=white)
@@ -218,6 +220,8 @@ Alright alright... this is probably the bit you ACTUALLY need to read, trust me.
 
 *+-* **Use Argon2ID: true**
 
+*+-* **PBKDF2 hash type: SHA-512**
+
 *+-* **PBKDF2 iterations: 1,000,000 (1m)**
 
 *+-* **Argon2 time cost: 4**
@@ -236,10 +240,10 @@ Alright alright... this is probably the bit you ACTUALLY need to read, trust me.
 
 ## "Okay but I have some questions!!!" - *Aight.*
 ### "If I lose / forget my password for a file or archive, can I get it back?"
-The answer is yes... is what I would say if we we're using **ROT13**, **AES-256-GCM** is very unforgiving, so NO you can't recover your data in the sense of decrypting it.
+The answer is yes... is what I would say if we we're using **ROT13**, **AES-256-GCM** (same with **ChaCha20-Poly1305**) is very unforgiving, so NO you can't recover your data in the sense of decrypting it.
 
-### "How secure is this AES shit?"
-Well, a direct but indirect answer but **AES-256-GCM** or any `cryptography` element like `PBKDF2` or `Argon2ID` is actually used to encrypt military / government secrets... yet the War Thunder community still keeps getting them somehow?
+### "How secure is this AES or Cha shit?"
+Well, a direct but indirect answer but **AES-256-GCM** / **ChaCha20-Poly1305** or any `cryptography` element like `PBKDF2` or `Argon2ID` is actually used to encrypt military / government secrets... yet the War Thunder community still keeps getting them somehow?
 
 Now in short: yes. Very secure and powerful as hell.
 
@@ -256,6 +260,9 @@ So yeah, that's my best reasoning, and if you don't trust if you can run it in *
 
 ### "Can I use this for [insert_illegal_thing]?"
 Well, in theory yes'nt. But from my view I won't encourage it, but you have free will to do whatever with my software. After all it's open source...
+
+### "Um, is the crypto audited??"
+The core... or well `core.py` is not audited by professionals; but if you check yourself or ask anyone about it. Nine times out of ten they will say that the implementation is good.
 
 ### "Okay, now erm... 🤓 I use Arch btw... how do I use CLI?" - *Yeah um... about that...!*
 Now in all honesty this issue is on **me** since I never really tested CLI mode. It's buggy, doesn't work... and somehow I'm better with GUI work?
@@ -276,7 +283,7 @@ The password for the `.zip` file(s) is; `PyLI`, use a tool like **WinRAR**, **7-
 ## "Right... but what do I need for this?" *Probably should of said this earlier but anyways.*
 
 ### Python 3.12
-To compile **PyLI**, you'll need at least **Python `3.10+`** (tested on `3.12`). If you are using `MSVC` as your C compiler; you can use **Python 3.13**, otherwise you must use either `3.12` for `GCC` or `Clang` as your compiler.
+To compile **PyLI**, you'll need at least **Python `3.10+`** (tested on `3.12`). If you are using `MSVC` as your C compiler; you can use **Python** `3.13`, otherwise you must use either `3.12` for `GCC` or `Clang` as your compiler.
 
 #### [Python 3.12 download page](https://www.python.org/downloads/release/python-3120/)
 
