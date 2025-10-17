@@ -11,7 +11,7 @@ secure_mem_lib_name = None
 secure_mem_lib_dir = None
 if sys.platform == "win32":
     secure_mem_lib_name = "secure_mem.dll"
-    secure_mem_lib_dir = "spyware" ## still not spyware...
+    secure_mem_lib_dir = "win32"
 elif sys.platform.startswith("linux"):
     secure_mem_lib_name = "secure_mem.so"
     secure_mem_lib_dir = "penguin"
@@ -37,7 +37,7 @@ aes_ni_lib_name = None
 aes_ni_lib_dir = None
 if sys.platform == "win32":
     aes_ni_lib_name = "chc_aes_ni.dll"
-    aes_ni_lib_dir = "spyware"
+    aes_ni_lib_dir = "win32"
 elif sys.platform.startswith("linux"):
     aes_ni_lib_name = "chc_aes_ni.so"
     aes_ni_lib_dir = "penguin"
