@@ -1,5 +1,5 @@
 ## core.py
-## last updated: 14/10/2025 <d/m/y>
+## last updated: 17/10/2025 <d/m/y>
 ## p-y-l-i
 import os
 import io
@@ -32,7 +32,7 @@ from c_base import clear_buffer
 from cmp import compress_chunk, decompress_chunk, should_skip_compression, COMPRESSION_NONE, COMPRESSION_MODES
 
 CHUNK_SIZE = 3 * 1024 * 1024
-FORMAT_VERSION = 8
+FORMAT_VERSION = 9
 ALGORITHM_ID_AES_GCM = 1
 ALGORITHM_ID_CHACHA = 2
 KDF_ID_PBKDF2 = 1
@@ -141,10 +141,8 @@ class CryptoWorker:
     def _derive_key_pbkdf2(self, salt, iterations=None, hash_algorithm=None):
         if iterations is None:
             iterations = self.kdf_iterations
-        
         if hash_algorithm is None:
              hash_algorithm = hashes.SHA256()
-
         pwd_bytes = self.password.encode("utf-8")
         pwd_buffer = ctypes.create_string_buffer(len(pwd_bytes))
         pwd_buffer.raw = pwd_bytes
@@ -153,8 +151,7 @@ class CryptoWorker:
             length=32,
             salt=salt,
             iterations=iterations,
-            backend=default_backend()
-        )
+            backend=default_backend())
         key = kdf.derive(pwd_buffer.value)
         if self.secure_clear:
             clear_buffer(pwd_buffer)
@@ -171,8 +168,7 @@ class CryptoWorker:
                 memory_cost=self.argon2_memory_cost,
                 parallelism=self.argon2_parallelism,
                 hash_len=32,
-                type=Type.ID
-            )
+                type=Type.ID)
             password_bytes = None
             return key
         except HashingError as e:
@@ -200,6 +196,8 @@ class CryptoWorker:
         effective_compression_level = self.compression_level
         if should_skip_compression(self.in_path):
             effective_compression_level = "none"
+        first_chunk = True
+        final_compression_id = COMPRESSION_NONE
         salt = os.urandom(SALT_SIZE)
         if self.aead_algorithm == "chacha20-poly1305":
             aead_id = ALGORITHM_ID_CHACHA
@@ -234,32 +232,33 @@ class CryptoWorker:
         if os.path.exists(self.out_path) and not os.path.samefile(self.in_path, self.out_path):
             raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")
         total_size = os.path.getsize(self.in_path)
-        processed_size = 0
         rs_codec = reedsolo.RSCodec(ECC_BYTES) if self.add_recovery_data else None
         with open(self.in_path, "rb") as infile, open(self.out_path, "wb") as outfile:
-            outfile.write(MAGIC_NUMBER)
-            outfile.write(struct.pack("!B", FORMAT_VERSION))
-            outfile.write(struct.pack("!B", aead_id))
+            final_compression_id_to_write = COMPRESSION_MODES.get(effective_compression_level, {"id": COMPRESSION_NONE})["id"]
+            header_buffer = io.BytesIO()
+            header_buffer.write(MAGIC_NUMBER)
+            header_buffer.write(struct.pack("!B", FORMAT_VERSION))
+            header_buffer.write(struct.pack("!B", aead_id))
             flags = FLAG_RECOVERY_DATA if self.add_recovery_data else 0
-            outfile.write(struct.pack("!B", flags))
-            outfile.write(struct.pack("!B", kdf_type))
-            compression_id_pos = outfile.tell()
-            outfile.write(struct.pack("!B", COMPRESSION_NONE))
+            header_buffer.write(struct.pack("!B", flags))
+            header_buffer.write(struct.pack("!B", kdf_type))
+            header_buffer.write(struct.pack("!B", final_compression_id_to_write))
             if self.add_recovery_data:
-                outfile.write(struct.pack("!B", ECC_BYTES))
+                header_buffer.write(struct.pack("!B", ECC_BYTES))
             if kdf_type == KDF_ID_ARGON2:
-                outfile.write(struct.pack("!I", self.argon2_time_cost))
-                outfile.write(struct.pack("!I", self.argon2_memory_cost))
-                outfile.write(struct.pack("!I", self.argon2_parallelism))
+                header_buffer.write(struct.pack("!I", self.argon2_time_cost))
+                header_buffer.write(struct.pack("!I", self.argon2_memory_cost))
+                header_buffer.write(struct.pack("!I", self.argon2_parallelism))
             else:
-                outfile.write(struct.pack("!B", pbkdf2_hash_id))
-                outfile.write(struct.pack("!I", self.kdf_iterations))
-            outfile.write(salt)
-            outfile.write(ext_nonce)
-            outfile.write(struct.pack("!I", len(encrypted_ext)))
-            outfile.write(encrypted_ext)
-            first_chunk = True
-            final_compression_id = COMPRESSION_NONE
+                header_buffer.write(struct.pack("!B", pbkdf2_hash_id))
+                header_buffer.write(struct.pack("!I", self.kdf_iterations))
+            header_buffer.write(salt)
+            header_buffer.write(ext_nonce)
+            header_buffer.write(struct.pack("!I", len(encrypted_ext)))
+            header_buffer.write(encrypted_ext)
+            header_bytes = header_buffer.getvalue()
+            outfile.write(header_bytes)
+            processed_size = 0
             if total_size > self.chunk_size * 4 and effective_compression_level != "none":
                 try:
                     with mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ) as mmapped_file:
@@ -278,10 +277,6 @@ class CryptoWorker:
                                 compressed_chunk, compression_id = future.result()
                                 if first_chunk:
                                     final_compression_id = compression_id
-                                    current_pos = outfile.tell()
-                                    outfile.seek(compression_id_pos)
-                                    outfile.write(struct.pack("!B", final_compression_id))
-                                    outfile.seek(current_pos)
                                     first_chunk = False
                                 if final_compression_id == COMPRESSION_NONE:
                                     mmapped_file.seek(chunk_offset)
@@ -292,7 +287,7 @@ class CryptoWorker:
                                     original_chunk = mmapped_file.read(chunk_len)
                                     compressed_chunk = mode["func"](original_chunk)
                                 chunk_nonce = os.urandom(NONCE_SIZE)
-                                encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, None)
+                                encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, associated_data=header_bytes)
                                 outfile.write(chunk_nonce)
                                 outfile.write(struct.pack("!I", len(encrypted_chunk)))
                                 outfile.write(encrypted_chunk)
@@ -310,10 +305,6 @@ class CryptoWorker:
                         compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
                         if first_chunk:
                             final_compression_id = compression_id
-                            current_pos = outfile.tell()
-                            outfile.seek(compression_id_pos)
-                            outfile.write(struct.pack("!B", final_compression_id))
-                            outfile.seek(current_pos)
                             first_chunk = False
                         if final_compression_id == COMPRESSION_NONE:
                             compressed_chunk = chunk
@@ -321,7 +312,7 @@ class CryptoWorker:
                             mode = COMPRESSION_MODES[effective_compression_level]
                             compressed_chunk = mode["func"](chunk)
                         chunk_nonce = os.urandom(NONCE_SIZE)
-                        encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, None)
+                        encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, associated_data=header_bytes)
                         outfile.write(chunk_nonce)
                         outfile.write(struct.pack("!I", len(encrypted_chunk)))
                         outfile.write(encrypted_chunk)
@@ -338,10 +329,6 @@ class CryptoWorker:
                     compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
                     if first_chunk:
                         final_compression_id = compression_id
-                        current_pos = outfile.tell()
-                        outfile.seek(compression_id_pos)
-                        outfile.write(struct.pack("!B", final_compression_id))
-                        outfile.seek(current_pos)
                         first_chunk = False
                     if final_compression_id == COMPRESSION_NONE:
                         compressed_chunk = chunk
@@ -349,7 +336,7 @@ class CryptoWorker:
                         mode = COMPRESSION_MODES[effective_compression_level]
                         compressed_chunk = mode["func"](chunk)
                     chunk_nonce = os.urandom(NONCE_SIZE)
-                    encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, None)
+                    encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, associated_data=header_bytes)
                     outfile.write(chunk_nonce)
                     outfile.write(struct.pack("!I", len(encrypted_chunk)))
                     outfile.write(encrypted_chunk)
@@ -400,33 +387,38 @@ class CryptoWorker:
             self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
         if os.path.exists(self.out_path):
             raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")
+        
+        final_compression_id_to_write = COMPRESSION_MODES.get(effective_compression_level, {"id": COMPRESSION_NONE})["id"]
+        header_buffer = io.BytesIO()
+        header_buffer.write(MAGIC_NUMBER)
+        header_buffer.write(struct.pack("!B", FORMAT_VERSION))
+        header_buffer.write(struct.pack("!B", aead_id))
+        flags = FLAG_RECOVERY_DATA if self.add_recovery_data else 0
+        flags |= FLAG_ARCHIVE_MODE
+        header_buffer.write(struct.pack("!B", flags))
+        header_buffer.write(struct.pack("!B", kdf_type))
+        header_buffer.write(struct.pack("!B", final_compression_id_to_write))
+        if self.add_recovery_data:
+            header_buffer.write(struct.pack("!B", ECC_BYTES))
+        if kdf_type == KDF_ID_ARGON2:
+            header_buffer.write(struct.pack("!I", self.argon2_time_cost))
+            header_buffer.write(struct.pack("!I", self.argon2_memory_cost))
+            header_buffer.write(struct.pack("!I", self.argon2_parallelism))
+        else:
+            header_buffer.write(struct.pack("!B", pbkdf2_hash_id))
+            header_buffer.write(struct.pack("!I", self.kdf_iterations))
+        header_buffer.write(salt)
+        header_buffer.write(ext_nonce)
+        header_buffer.write(struct.pack("!I", len(encrypted_ext)))
+        header_buffer.write(encrypted_ext)
+        header_bytes = header_buffer.getvalue()
         rs_codec = reedsolo.RSCodec(ECC_BYTES) if self.add_recovery_data else None
         with open(self.out_path, "wb") as outfile:
-            outfile.write(MAGIC_NUMBER)
-            outfile.write(struct.pack("!B", FORMAT_VERSION))
-            outfile.write(struct.pack("!B", aead_id))
-            flags = FLAG_RECOVERY_DATA if self.add_recovery_data else 0
-            flags |= FLAG_ARCHIVE_MODE
-            outfile.write(struct.pack("!B", flags))
-            outfile.write(struct.pack("!B", kdf_type))
-            compression_id_pos = outfile.tell()
-            outfile.write(struct.pack("!B", COMPRESSION_NONE))
-            if self.add_recovery_data:
-                outfile.write(struct.pack("!B", ECC_BYTES))
-            if kdf_type == KDF_ID_ARGON2:
-                outfile.write(struct.pack("!I", self.argon2_time_cost))
-                outfile.write(struct.pack("!I", self.argon2_memory_cost))
-                outfile.write(struct.pack("!I", self.argon2_parallelism))
-            else:
-                outfile.write(struct.pack("!B", pbkdf2_hash_id))
-                outfile.write(struct.pack("!I", self.kdf_iterations))
-            outfile.write(salt)
-            outfile.write(ext_nonce)
-            outfile.write(struct.pack("!I", len(encrypted_ext)))
-            outfile.write(encrypted_ext)
+            outfile.write(header_bytes)
             first_chunk = True
             final_compression_id = COMPRESSION_NONE
             processed_size = 0
+            
             def data_stream():
                 yield archive_header
                 for file_path, _, _ in file_info:
@@ -454,10 +446,6 @@ class CryptoWorker:
                                 compressed_chunk, compression_id = future.result()
                                 if first_chunk:
                                     final_compression_id = compression_id
-                                    current_pos = outfile.tell()
-                                    outfile.seek(compression_id_pos)
-                                    outfile.write(struct.pack("!B", final_compression_id))
-                                    outfile.seek(current_pos)
                                     first_chunk = False
                                 if final_compression_id == COMPRESSION_NONE and compression_id != COMPRESSION_NONE:
                                     compressed_chunk = decompress_chunk(compressed_chunk, compression_id)
@@ -465,7 +453,7 @@ class CryptoWorker:
                                     mode = COMPRESSION_MODES[effective_compression_level]
                                     compressed_chunk = mode["func"](compressed_chunk)
                                 chunk_nonce = os.urandom(NONCE_SIZE)
-                                encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, None)
+                                encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, associated_data=header_bytes)
                                 outfile.write(chunk_nonce)
                                 outfile.write(struct.pack("!I", len(encrypted_chunk)))
                                 outfile.write(encrypted_chunk)
@@ -483,10 +471,6 @@ class CryptoWorker:
                             compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
                             if first_chunk:
                                 final_compression_id = compression_id
-                                current_pos = outfile.tell()
-                                outfile.seek(compression_id_pos)
-                                outfile.write(struct.pack("!B", final_compression_id))
-                                outfile.seek(current_pos)
                                 first_chunk = False
                             if final_compression_id == COMPRESSION_NONE:
                                 compressed_chunk = chunk
@@ -494,7 +478,7 @@ class CryptoWorker:
                                 mode = COMPRESSION_MODES[effective_compression_level]
                                 compressed_chunk = mode["func"](chunk)
                             chunk_nonce = os.urandom(NONCE_SIZE)
-                            encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, None)
+                            encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, associated_data=header_bytes)
                             outfile.write(chunk_nonce)
                             outfile.write(struct.pack("!I", len(encrypted_chunk)))
                             outfile.write(encrypted_chunk)
@@ -513,10 +497,6 @@ class CryptoWorker:
                     compressed_chunk, compression_id = compress_chunk(chunk, effective_compression_level)
                     if first_chunk:
                         final_compression_id = compression_id
-                        current_pos = outfile.tell()
-                        outfile.seek(compression_id_pos)
-                        outfile.write(struct.pack("!B", final_compression_id))
-                        outfile.seek(current_pos)
                         first_chunk = False
                     if final_compression_id == COMPRESSION_NONE:
                         compressed_chunk = chunk
@@ -524,7 +504,7 @@ class CryptoWorker:
                         mode = COMPRESSION_MODES[effective_compression_level]
                         compressed_chunk = mode["func"](chunk)
                     chunk_nonce = os.urandom(NONCE_SIZE)
-                    encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, None)
+                    encrypted_chunk = cipher.encrypt(chunk_nonce, compressed_chunk, associated_data=header_bytes)
                     outfile.write(chunk_nonce)
                     outfile.write(struct.pack("!I", len(encrypted_chunk)))
                     outfile.write(encrypted_chunk)
@@ -542,7 +522,144 @@ class CryptoWorker:
         with open(self.in_path, "rb") as infile:
             if infile.read(len(MAGIC_NUMBER)) != MAGIC_NUMBER:
                 raise ValueError("Not a valid PyLI encrypted file.")
+            infile.seek(len(MAGIC_NUMBER))
             version = struct.unpack("!B", infile.read(1))[0]
+            if version < 9:
+                return self._decrypt_legacy_file(version)
+            infile.seek(0)
+            magic = infile.read(len(MAGIC_NUMBER))
+            version = struct.unpack("!B", infile.read(1))[0]
+            aead_id = struct.unpack("!B", infile.read(1))[0]
+            flags = struct.unpack("!B", infile.read(1))[0]
+            recovery_enabled = (flags & FLAG_RECOVERY_DATA) != 0
+            is_archive = (flags & FLAG_ARCHIVE_MODE) != 0
+            kdf_type = struct.unpack("!B", infile.read(1))[0]
+            compression_id = struct.unpack("!B", infile.read(1))[0]
+            ecc_bytes = 0
+            if recovery_enabled:
+                ecc_bytes = struct.unpack("!B", infile.read(1))[0]
+            kdf_iterations = None
+            pbkdf2_hash_id = None
+            if kdf_type == KDF_ID_ARGON2:
+                self.argon2_time_cost = struct.unpack("!I", infile.read(4))[0]
+                self.argon2_memory_cost = struct.unpack("!I", infile.read(4))[0]
+                self.argon2_parallelism = struct.unpack("!I", infile.read(4))[0]
+            else:
+                pbkdf2_hash_id = struct.unpack("!B", infile.read(1))[0]
+                kdf_iterations = struct.unpack("!I", infile.read(4))[0]
+                self.argon2_time_cost = self.argon2_memory_cost = self.argon2_parallelism = None
+            salt = infile.read(SALT_SIZE)
+            ext_nonce = infile.read(NONCE_SIZE)
+            ext_len = struct.unpack("!I", infile.read(4))[0]
+            encrypted_ext = infile.read(ext_len)
+            header_end_pos = infile.tell()
+            infile.seek(0)
+            header_bytes = infile.read(header_end_pos)
+            key = self._derive_key(salt, iterations=kdf_iterations, kdf_type=kdf_type, pbkdf2_hash_id=pbkdf2_hash_id)
+            cipher = ChaCha20Poly1305(key) if aead_id == ALGORITHM_ID_CHACHA else AESGCM(key)
+            try:
+                original_ext = cipher.decrypt(ext_nonce, encrypted_ext, None).decode("utf-8")
+            except InvalidTag:
+                raise ValueError("Incorrect password or corrupt file extension data.")
+            decrypted_data = bytearray()
+            total_size = os.path.getsize(self.in_path)
+            rs_codec = reedsolo.RSCodec(ecc_bytes) if recovery_enabled else None
+            chunk_data = []
+            while True:
+                if self.is_canceled: raise Exception("Operation canceled by user.")
+                chunk_nonce = infile.read(NONCE_SIZE)
+                if not chunk_nonce: break
+                len_bytes = infile.read(4)
+                if not len_bytes: break
+                encrypted_chunk_len = struct.unpack("!I", len_bytes)[0]
+                encrypted_chunk = infile.read(encrypted_chunk_len)
+                parity_data = b""
+                if recovery_enabled:
+                    parity_data = infile.read(ecc_bytes)
+                if not encrypted_chunk: break
+                chunk_data.append((chunk_nonce, encrypted_chunk, parity_data))
+        
+            if len(chunk_data) > 4 and compression_id != COMPRESSION_NONE:
+                def decrypt_chunk_worker(chunk_info):
+                    chunk_nonce, encrypted_chunk, parity_data = chunk_info
+                    try:
+                        if rs_codec:
+                            try:
+                                combined_data = bytearray(encrypted_chunk + parity_data)
+                                decrypted_chunk_with_parity, _, _ = rs_codec.decode(combined_data)
+                                encrypted_chunk = bytes(decrypted_chunk_with_parity)
+                            except reedsolo.ReedSolomonError:
+                                raise ValueError("File chunk is corrupt and could not be recovered.")
+                        decrypted_chunk = cipher.decrypt(chunk_nonce, encrypted_chunk, associated_data=header_bytes)
+                        decompressed_chunk = decompress_chunk(decrypted_chunk, compression_id)
+                        return decompressed_chunk
+                    except InvalidTag:
+                        raise ValueError("File appears to be corrupted, header was tampered with, or password is incorrect (chunk authentication failed).")
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = {executor.submit(decrypt_chunk_worker, chunk_info): i for i, chunk_info in enumerate(chunk_data)}
+                    results = [None] * len(chunk_data)
+                    for future in as_completed(futures):
+                        chunk_index = futures[future]
+                        try:
+                            results[chunk_index] = future.result()
+                        except Exception as e:
+                            raise e
+                        processed_chunks = chunk_index + 1
+                        if total_size > header_end_pos:
+                            progress = min(100.0, (processed_chunks / len(chunk_data)) * 70)
+                            if self.progress_callback:
+                                self.progress_callback(progress)
+                for result in results:
+                    decrypted_data.extend(result)
+            else:
+                for i, (chunk_nonce, encrypted_chunk, parity_data) in enumerate(chunk_data):
+                    if self.is_canceled: raise Exception("Operation canceled by user.")
+                    try:
+                        if rs_codec:
+                            try:
+                                combined_data = bytearray(encrypted_chunk + parity_data)
+                                decrypted_chunk_with_parity, _, _ = rs_codec.decode(combined_data)
+                                encrypted_chunk = bytes(decrypted_chunk_with_parity)
+                            except reedsolo.ReedSolomonError:
+                                raise ValueError("File chunk is corrupt and could not be recovered.")
+                        decrypted_chunk = cipher.decrypt(chunk_nonce, encrypted_chunk, associated_data=header_bytes)
+                        decompressed_chunk = decompress_chunk(decrypted_chunk, compression_id)
+                        decrypted_data.extend(decompressed_chunk)
+                    except InvalidTag:
+                        raise ValueError("File appears to be corrupted, header was tampered with, or password is incorrect (chunk authentication failed).")
+                    if total_size > header_end_pos:
+                        progress = min(100.0, ((i + 1) / len(chunk_data)) * 70)
+                        if self.progress_callback:
+                            self.progress_callback(progress)
+        if is_archive and original_ext == "archive":
+            out_dir = self.output_dir or os.path.dirname(self.in_path)
+            base_filename = os.path.splitext(os.path.basename(self.in_path))[0]
+            extract_dir = os.path.join(out_dir, f"{base_filename}_extracted")
+            if os.path.exists(extract_dir):
+                counter = 1
+                while os.path.exists(f"{extract_dir}_{counter}"):
+                    counter += 1
+                extract_dir = f"{extract_dir}_{counter}"
+            extract_archive(bytes(decrypted_data), extract_dir,
+                          lambda p: self.progress_callback(70 + p * 0.3) if self.progress_callback else None)
+        else:
+            out_dir = self.output_dir or os.path.dirname(self.in_path)
+            base_filename = os.path.splitext(os.path.basename(self.in_path))[0]
+            out_path = os.path.join(out_dir, f"{base_filename}.{original_ext}")
+            if os.path.exists(out_path) and not os.path.samefile(self.in_path, out_path):
+                raise IOError(f"Output file '{os.path.basename(out_path)}' already exists.")
+            with open(out_path, "wb") as outfile:
+                outfile.write(decrypted_data)
+        if self.progress_callback: self.progress_callback(100.0)
+
+    def _decrypt_legacy_file(self, version):
+        with open(self.in_path, "rb") as infile:
+            infile.seek(0)
+            if infile.read(len(MAGIC_NUMBER)) != MAGIC_NUMBER:
+                raise ValueError("Not a valid PyLI encrypted file.")
+            read_version = struct.unpack("!B", infile.read(1))[0]
+            if read_version != version:
+                 raise ValueError("Internal logic error: version mismatch.")
             if version < 3:
                 raise ValueError(f"Unsupported format version: {version}. This version requires format 3 or higher.")
             aead_id = ALGORITHM_ID_AES_GCM
@@ -560,7 +677,7 @@ class CryptoWorker:
             ecc_bytes = 0
             if recovery_enabled:
                 ecc_bytes = struct.unpack("!B", infile.read(1))[0]
-            pbkdf2_hash_id = HASH_ID_SHA256 # Default for older versions
+            pbkdf2_hash_id = HASH_ID_SHA256
             if kdf_type == KDF_ID_ARGON2:
                 argon2_time_cost = struct.unpack("!I", infile.read(4))[0]
                 argon2_memory_cost = struct.unpack("!I", infile.read(4))[0]
@@ -570,7 +687,7 @@ class CryptoWorker:
                 if version >= 8:
                     pbkdf2_hash_id = struct.unpack("!B", infile.read(1))[0]
                     kdf_iterations = struct.unpack("!I", infile.read(4))[0]
-                else: # Legacy format v6/7
+                else: ## format 6-7... six seven?
                     kdf_iterations = struct.unpack("!I", infile.read(4))[0]
                 argon2_time_cost = argon2_memory_cost = argon2_parallelism = None
             salt = infile.read(SALT_SIZE)
@@ -774,4 +891,5 @@ class BatchProcessorThread(QThread):
                 os.remove(self.out_path)
             except Exception:
                 pass
+
 ## end

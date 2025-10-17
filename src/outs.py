@@ -1,6 +1,6 @@
 ## outs.py
 ## last updated: 11/10/2025 <d/m/y>
-## p-y-l-i 
+## p-y-l-i
 import os
 import ctypes
 import sys

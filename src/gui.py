@@ -1,7 +1,7 @@
 ## gui.py
 ## last updated: 14/10/2025 <d/m/y>
 ## p-y-l-i
-## libs: pip install PySide6 cryptography pygame reedsolo zstandard pyzstd argon2-cffi
+## libs: pip install pyside6 cryptography pygame reedsolo zstandard pyzstd argon2-cffi
 ## compile (gcc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/spyware/chc_aes_ni.dll=c/spyware/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
 ## compile (msvc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/spyware/chc_aes_ni.dll=c/spyware/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
 import os
@@ -125,11 +125,12 @@ class PyLI(QWidget):
 
     def init_debug_console(self):
         if self.is_admin:
-            VER = "1.2"
+            VER = "1.3"
             self.debug_console = DebugConsole(parent=self)
             print("--- PyLI debug console initialized (Administrator) ---")
             print(f"--- Version: {VER} ---")
             print(f"--- Argon2ID available: {ARGON2_AVAILABLE} ---")
+            print(f"--- Secure memory C lib loaded: {isca} ---")
             print(f"--- AES-NI C lib loaded: {aes_ni_aval()} ---")
             print(f"--- CPU supports AES-NI: {self.has_aes_ni} ---")
 
@@ -332,8 +333,8 @@ class PyLI(QWidget):
         output_layout.addRow("New name type:", self.new_name_type_combo)
         self.archive_mode_checkbox = QCheckBox()
         self.archive_mode_checkbox.setChecked(self.archive_mode)
-        self.archive_mode_checkbox.setToolTip("When multiple files are selected for encryption, combine them into a single archive file first.\nDecryption will extract all files to a folder.")
         output_layout.addRow("Archive mode:", self.archive_mode_checkbox)
+        self.archive_mode_checkbox.setToolTip("Archive mode\n\nKnock off .zip file. Combines all files during encryption\ninto a single file; highly recommended.")
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
         layout.addStretch()
@@ -347,6 +348,7 @@ class PyLI(QWidget):
         self.mute_sfx_checkbox = QCheckBox()
         self.mute_sfx_checkbox.setChecked(self.mute_sfx)
         audio_layout.addRow("Mute sfx:", self.mute_sfx_checkbox)
+        self.mute_sfx_checkbox.setToolTip("Mute sfx\n\nMute all sound effects in PyLI.")
         audio_group.setLayout(audio_layout)
         layout.addWidget(audio_group)
         layout.addStretch()
@@ -398,7 +400,7 @@ class PyLI(QWidget):
         self.aead_combo.addItems(["AES-256-GCM", "ChaCha20-Poly1305"])
         aead_map = {"aes-gcm": "AES-256-GCM", "chacha20-poly1305": "ChaCha20-Poly1305"}
         self.aead_combo.setCurrentText(aead_map.get(self.aead_algorithm, "AES-256-GCM"))
-        self.aead_combo.setToolTip("Choose the encryption algorithm.\nAES-GCM is faster on CPUs with AES-NI support.\nChaCha20-Poly1305 is a modern and secure alternative.")
+        self.aead_combo.setToolTip("AEAD algorithm\n\nChoose between AES-256-GCM or\nChaCha20-Poly1305 for your encryption algorithm.")
         self.aead_combo.currentTextChanged.connect(self.update_aead_warning)
         encryption_layout.addRow("AEAD algorithm:", self.aead_combo)
         self.aes_ni_warning_label = QLabel("Warning: your CPU supports AES-NI, making AES-GCM significantly faster.")
@@ -413,26 +415,27 @@ class PyLI(QWidget):
         self.use_argon2_checkbox.stateChanged.connect(self.handle_argon2_checkbox)
         if not ARGON2_AVAILABLE:
             self.use_argon2_checkbox.setEnabled(False)
-            self.use_argon2_checkbox.setToolTip("Argon2ID library not installed. Install with: pip install argon2-cffi")
+            self.use_argon2_checkbox.setToolTip("Use Argon2ID\n\nLibrary not installed.\nInstall with: pip install argon2-cffi")
         else:
-            self.use_argon2_checkbox.setToolTip("Use Argon2 (modern, secure) instead of PBKDF2 for key derivation.\nArgon2 provides better protection against GPU attacks.")
+            self.use_argon2_checkbox.setToolTip("Use Argon2ID\n\nArgon2ID a more modern and secure\nalternative to PBKDF2 for KDF.")
         kdf_layout.addRow("Use Argon2ID:", self.use_argon2_checkbox)
         self.kdf_iterations_spinbox = QSpinBox()
         self.kdf_iterations_spinbox.setRange(100000, 5000000)
         self.kdf_iterations_spinbox.setSingleStep(100000)
         self.kdf_iterations_spinbox.setValue(self.kdf_iterations)
         self.kdf_iterations_spinbox.setGroupSeparatorShown(True)
-        self.kdf_iterations_spinbox.setToolTip("Number of iterations for PBKDF2 (only used when Argon2ID is disabled)")
+        self.kdf_iterations_spinbox.setToolTip("PBKDF2 iterations (if Argon2ID is False)\n\nNumber of KDF deriviations used by PBKDF2;\nhigher is more secure but slower.")
         self.pbkdf2_hash_combo = QComboBox()
-        self.pbkdf2_hash_combo.addItems(["SHA-256", "SHA-512"])
+        self.pbkdf2_hash_combo.addItems(["sha-256", "sha-512"])
         self.pbkdf2_hash_combo.setCurrentText(self.pbkdf2_hash)
         self.pbkdf2_hash_combo.currentTextChanged.connect(self.update_pbkdf2_hash)
         kdf_layout.addRow("PBKDF2 hash type:", self.pbkdf2_hash_combo)
+        self.pbkdf2_hash_combo.setToolTip("PBKDF2 hash type\n\nChoose if PBKDF2 will use\nSHA-256 or SHA-512 for key hashing.")
         kdf_layout.addRow("PBKDF2 iterations:", self.kdf_iterations_spinbox)
         self.argon2_time_spinbox = QSpinBox()
         self.argon2_time_spinbox.setRange(1, 20)
         self.argon2_time_spinbox.setValue(self.argon2_time_cost)
-        self.argon2_time_spinbox.setToolTip("Argon2ID time cost (iterations).\n\nHigher = more secure but slower.\n\nDefault: 3")
+        self.argon2_time_spinbox.setToolTip("Argon2ID time cost (iterations).\n\nTime amout for cracking / decryping Argon2ID,\nthe higher the stronger and slower it is.")
         kdf_layout.addRow("Argon2 time cost:", self.argon2_time_spinbox)
         self.argon2_memory_spinbox = QSpinBox()
         self.argon2_memory_spinbox.setRange(1024, 1048576)
@@ -445,12 +448,12 @@ class PyLI(QWidget):
         argon2_memory_layout = QHBoxLayout()
         argon2_memory_layout.addWidget(self.argon2_memory_spinbox)
         argon2_memory_layout.addWidget(self.argon2_memory_cost_preset)
-        self.argon2_memory_spinbox.setToolTip("Argon2ID memory usage in KB.\n\nHigher = more secure but uses more RAM. Default: 64MB")
+        self.argon2_memory_spinbox.setToolTip("Argon2ID memory usage in KB.\n\nHigher usage is more secure and makes\nbruteforcing harder at the cost of RAM itself\nwhile encrypting / decrypting.")
         kdf_layout.addRow("Argon2ID memory cost:", argon2_memory_layout)
         self.argon2_parallelism_spinbox = QSpinBox()
         self.argon2_parallelism_spinbox.setRange(1, 16)
         self.argon2_parallelism_spinbox.setValue(self.argon2_parallelism)
-        self.argon2_parallelism_spinbox.setToolTip("Argon2 parallelism (threads).\n\nShould match CPU cores.\n\nDefault: 4")
+        self.argon2_parallelism_spinbox.setToolTip("ArgonID2 parallelism (threads).\n\nAmout of cores Argon2ID will use,\nrecommended to match CPU cores.")
         kdf_layout.addRow("Argon2ID parallelism:", self.argon2_parallelism_spinbox)       
         kdf_group.setLayout(kdf_layout)
         compression_group = QGroupBox("Compression")
@@ -460,7 +463,7 @@ class PyLI(QWidget):
         compression_mapping = {"None": "none", "Normal (fast)": "normal", "Best (slow-er)": "best", "ULTRAKILL (probably slow)": "ultrakill", "[L] ULTRAKILL (???)": "[L] ultrakill"}
         current_text = [k for k, v in compression_mapping.items() if v == self.compression_level][0]
         self.compression_combo.setCurrentText(current_text)
-        self.compression_combo.setToolTip("Compression makes (or tries) to make files smaller, if you want speed it is NOT recommended to use compression at all.")
+        self.compression_combo.setToolTip("Compression level\n\nCompression makes (or tries) to make files smaller,\nif you want speed it is NOT recommended\nto use compression at all.")
         compression_layout.addRow("Compression level:", self.compression_combo)
         compression_group.setLayout(compression_layout)
         security_group = QGroupBox("Security / data integrity")
@@ -477,7 +480,7 @@ class PyLI(QWidget):
         self.recovery_checkbox = QCheckBox()
         self.recovery_checkbox.setChecked(self.add_recovery_data)
         self.recovery_checkbox.stateChanged.connect(lambda state: self.handle_warning_checkbox(state, self.recovery_checkbox, "Warning",
-            "This adds Reed Solomon recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering fuck face.\n\nThis feature is SO slow in fact that I do not even test it myself :)"))
+            "This adds Reedsolo recovery data to each chunk.\n\nThis can help repair files from minor corruption (bit rot) but will increase file size and processing time. It does not protect against malicious tampering fuck face.\n\nThis feature is SO slow in fact that I do not even test it myself :)"))
         security_layout.addRow("Add partial data recovery info:", self.recovery_checkbox)
         security_group.setLayout(security_layout)
         performance_group = QGroupBox("Performance")
@@ -487,6 +490,7 @@ class PyLI(QWidget):
         self.chunk_size_spinbox.setValue(self.chunk_size_mb)
         self.chunk_size_spinbox.setSuffix(" MB")
         performance_layout.addRow("Chunk size:", self.chunk_size_spinbox)
+        self.chunk_size_spinbox.setToolTip("Chunk size\n\nHow many MBs will be used per chunk per processing;\nUSE THIS WITH CAUTION.")
         performance_group.setLayout(performance_layout)
         layout.addWidget(encryption_group)
         layout.addWidget(kdf_group)
@@ -494,14 +498,14 @@ class PyLI(QWidget):
         layout.addWidget(security_group)
         layout.addWidget(performance_group)
         layout.addStretch()
-        self.update_aead_warning(self.aead_combo.currentText()) # Initial check
+        self.update_aead_warning(self.aead_combo.currentText())
         scroll_area.setWidget(content_widget)
         main_layout.addWidget(scroll_area)
         return advanced_tab
 
     def update_aead_warning(self, text):
         show_warning = (text == "ChaCha20-Poly1305" and self.has_aes_ni)
-        if hasattr(self, 'aes_ni_warning_label'):
+        if hasattr(self, "aes_ni_warning_label"):
             self.aes_ni_warning_label.setVisible(show_warning)
             if show_warning and not self.mute_sfx:
                 self.sound_manager.play_sound("info.wav")
@@ -862,6 +866,7 @@ class PyLI(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     stream_redirect = QtStream()
+    app.setStyle("windowsvista")
     if is_admin():
         sys.stdout = stream_redirect
         sys.stderr = stream_redirect
