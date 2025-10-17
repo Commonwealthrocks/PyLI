@@ -1,5 +1,5 @@
 # **PyLI** - *Not harvesting your data since 2025!*
-**This is JOKE software, expect roughness or... about anything!**
+**This is a mix of jokes and passion, still expect some good ass encryption!!**
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![C](https://img.shields.io/badge/-darkblue?logo=c&logoColor=white)
@@ -246,6 +246,9 @@ The answer is yes... is what I would say if we we're using **ROT13**, **AES-256-
 Well, a direct but indirect answer but **AES-256-GCM** / **ChaCha20-Poly1305** or any `cryptography` element like `PBKDF2` or `Argon2ID` is actually used to encrypt military / government secrets... yet the War Thunder community still keeps getting them somehow?
 
 Now in short: yes. Very secure and powerful as hell.
+
+### "Why WAS there a folder named `spyware`?"
+Okay now this one is **MY** fault, because the folder named `spyware` was a joke named that's been there since `v0.4a` that was used for **Windows** only `.dll's` (get it cause Windows IS spyware? ha... yeah awful joke). So I get the confusion at first and decided to rename it to avoid further confusion.
 
 ### "Why does Windows Defender flag the `.exe`?"
 Well, here's what **Windows** sees when looking at **PyLI**...
