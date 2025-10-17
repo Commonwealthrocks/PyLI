@@ -273,10 +273,10 @@ That being said, you can try the CLI mode...? It's just really shit.
 
 # PyLI build information
 ### Warning
-This build version is for **PyLI** version `v1.2`
+This build version is for **PyLI** version `v1.3`
 
 ## "Where do I get the source code?" - *Well...!*
-From the releases tab you can get the source code for version `v1.2` or any older version. If you want the best support and UX, choose the **LATEST** version and download the `.zip` file.
+From the releases tab you can get the source code for version `v1.3` or any older version. If you want the best support and UX, choose the **LATEST** version and download the `.zip` file.
 
 The password for the `.zip` file(s) is; `PyLI`, use a tool like **WinRAR**, **7-zip** or **WinZip (built in)** to extract it.
 
@@ -302,13 +302,13 @@ Both C libraries (in `v1.2`) are ALREADY compiled both for **Windows** and **Lin
 
 ### GCC Nuitka (Linux / Windows)
 ```bash
-nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/spyware/chc_aes_ni.dll=c/spyware/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
+nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/win32/secure_mem.dll=c/32/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/win32/chc_aes_ni.dll=c/win32/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
 ```
 Run this in the root of the project; aka where you'll find `gui.py` in a terminal.
 
 ### MSVC Nuitka (Windows)
 ```bash
-nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/spyware/secure_mem.dll=c/spyware/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/spyware/chc_aes_ni.dll=c/spyware/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
+nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/win32/secure_mem.dll=c/win32/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/win32/chc_aes_ni.dll=c/win32/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
 ```
 Same step, run it in the root; this one here is **Windows** only.
 
