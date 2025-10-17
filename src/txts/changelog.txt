@@ -110,7 +110,7 @@ VERSION 1.1 - 11.10.2025 <d/m/y>
 - Added hide (H) and show (S) password option in main tab
 - Added password scoring with zxcvbn
 
-VERSION 1.2 - 14.10.2025 <d/m/y> [LATEST]
+VERSION 1.2 - 14.10.2025 <d/m/y>
 [PUBLIC BUILD]
 - Added icons in the apps main tab
 - Added ChaCha20-Poly1305 AEAD encryption
@@ -118,6 +118,14 @@ VERSION 1.2 - 14.10.2025 <d/m/y> [LATEST]
 - Added SHA-256 and SHA-512 for PBKDF2
 - Refactored sm.py to be more centralized
 - Removed the old sm.py file
+
+VERSION 1.3 - 17.10.2025 <d/m/y> [LATEST]
+[PUBLIC BUILD]
+- Improved tooltips in advanced tab of settings
+- Fixed GUI issue for Windows 11
+- Fixed SHA-256 or SHA-512 settings not saving sometimes
+- Added AD (Associated Data) for full file header
+- Added more files to compressions skip list
 
 That's all for now :)
 

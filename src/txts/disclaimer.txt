@@ -29,7 +29,7 @@ IMPORTANT CRYPTO NOTES:
 - Your encrypted files are YOUR responsibility.
 - Keep your original file somewhere safe JUST in case.
 - I'm not a cybersecurity expert, but on the bright side I'm not using Base64...
-
+ 
 TECHNICAL DISCLAIMERS:
 - Not tested on quantum computers (yet).
 - May not work properly during solar flares.

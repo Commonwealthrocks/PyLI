@@ -18,7 +18,7 @@ ULTRAKILL: zstandard level 22 (slow, best compression)
 [L] ULTRAKILL: Legacy LZMA preset 9 (REALLY damn slow)
 Auto skip: already compressed formats (jpg, mp4, etc.)
 
-FILE FORMAT STRUCTURE (v8):
+FILE FORMAT STRUCTURE (v9):
 Magic number: "PYLI\x00" (5 bytes)
 Format version: 7 (1 byte)
 AEAD Algorithm ID: 1=AES-GCM, 2=ChaCha20 (1 byte)
@@ -45,7 +45,7 @@ Each file gets unique salt and nonce
 Each chunk gets unique nonce
 AEADs provide authentication to detect tampering
 Password never stored, only derived key used
-Memory cleared after key derivation (C library if available)
+Memory cleared after key derivation to best effort (C library if available)
 Reed-Solomon error correction optional (32 bytes per chunk)
 AES-NI detection to recommend the fastest AEAD for your CPU
 
@@ -63,12 +63,13 @@ Crypto library: cryptography (Rust / C based)
 Compression: zlib, zstandard, lzma
 Compiler: Nuitka (when distributed)
 Platform: Windows based, MIGHT work on Linux/Mac
-Build version: 1-4-1-0-2-0-2-5
-Version: 1.2
+Build version: 1-7-1-0-2-0-2-5
+Version: 1.3
 
 KNOWN LIMITATIONS:
 No file shredding after encryption
 Progress is more accurate I guess...
 No key file support (password only)
+No CLI mode :(
 
 ## end
