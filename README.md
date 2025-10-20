@@ -8,6 +8,8 @@
 ![Offline](https://img.shields.io/badge/100%25-Offline-important)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
+### Read all of the source code before ya jump to conclusions btw; same with the commit history. I ain't tryna' hide it.
+
 ## "Why does this exist?" - *Good question Jimmy!*
 Sometimes, maybe all the times. You have a need to encrypt your files from whoever: could be your parents, your ISP, the government, the feds?
 
