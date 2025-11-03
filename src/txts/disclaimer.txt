@@ -10,10 +10,10 @@ Use it however the hell you want, but don't come crying to me if:
 - You edit the encrypted files, the authentication tag will not take that nicely.
 - Your cat walks across the keyboard and corrupts something.
 - Your keyboard walks across the cat and corrupts something (what?).
-- The software decides to derp mid encryption.
+- The software decides to derp mid encryption, unlikely.
 - You accidentally encrypt your entire C:\ drive (trust me it's possible if you try hard enough).
 - Your files get possessed.
-- The heat death of the universe occurs while processing (unlikely of happening tho).
+- The heat death of the universe occurs while processing (also unlikely of happening tho).
 
 By using this software, you acknowledge that:
 - You're a competent human being who can handle consequences.
@@ -27,7 +27,7 @@ IMPORTANT CRYPTO NOTES:
 - AES-256-GCM and ChaCha20-Poly1305 are no joke. Forget your password and your data is gone unless you specialize in this kinda shit.
 - This uses proper key derivation (Argon2ID or PBKDF2 with 1,000,000 iterations as default).
 - Your encrypted files are YOUR responsibility.
-- Keep your original file somewhere safe JUST in case.
+- If you're paranoid about losing your files, keep your original files elsewhere then.
 - I'm not a cybersecurity expert, but on the bright side I'm not using Base64...
  
 TECHNICAL DISCLAIMERS:
@@ -38,6 +38,6 @@ TECHNICAL DISCLAIMERS:
 - Not compatible with time travel (trust me, I tried).
 
 Bottom line: Use this with caution, perhaps got a concern or bug?
-e-mail: still no lol <3
+e-mail: fine; thecommonwealthee@gmail.com
 
 ## end

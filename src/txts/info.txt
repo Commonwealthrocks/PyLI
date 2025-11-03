@@ -3,7 +3,8 @@ TECHNICAL SPECIFICATIONS
 
 CRYPTOGRAPHIC DETAILS:
 Algorithms: AES-256-GCM, ChaCha20-Poly1305 (AEADs)
-Key derivation: Argon2ID, PBKDF2-HMAC-SHA256
+Key derivation: Argon2ID, PBKDF2-HMAC-SHA256 / SHA512
+PBKDF2 hash type: SHA-256, SHA-512
 Iterations PBKDF2: 1,000,000 (default)
 Settings Argon2ID: 64MB memory, 3 iterations, 4 parallelism (defaults)
 Salt size: 16 bytes (random per file)
@@ -19,8 +20,9 @@ ULTRAKILL: zstandard level 22 (slow, best compression)
 Auto skip: already compressed formats (jpg, mp4, etc.)
 
 FILE FORMAT STRUCTURE (v9):
-Magic number: "PYLI\x00" (5 bytes)
-Format version: 7 (1 byte)
+Magic number: "PYKX\x00" (5 bytes)
+Legacy magic number: "PYLI\x00" (5 bytes)
+Format version: 9 (1 byte)
 AEAD Algorithm ID: 1=AES-GCM, 2=ChaCha20 (1 byte)
 Flags: recovery data, archive mode (1 byte)
 KDF ID: 1=PBKDF2, 2=Argon2ID (1 byte)
@@ -34,27 +36,27 @@ Encrypted extension: variable length
 Per-chunk: nonce (12) + length (4) + encrypted data + parity (if recovery)
 
 ARCHIVE MODE:
-Combines multiple files into single encrypted archive
-Preserves directory structure and relative paths
-Metadata stored before file data for efficiency
-Extracts to folder with original structure intact
+Combines multiple files into single encrypted archive.
+Preserves directory structure and relative paths.
+Metadata stored before file data for efficiency.
+Extracts to folder with original structure intact.
 
 SECURITY NOTES:
-Extension encrypted to hide file type
-Each file gets unique salt and nonce
-Each chunk gets unique nonce
-AEADs provide authentication to detect tampering
-Password never stored, only derived key used
-Memory cleared after key derivation to best effort (C library if available)
-Reed-Solomon error correction optional (32 bytes per chunk)
-AES-NI detection to recommend the fastest AEAD for your CPU
+Extension encrypted to hide file type.
+Each file gets unique salt and nonce.
+Each chunk gets unique nonce.
+AEADs provide authentication to detect tampering.
+Password never stored, only derived key used.
+Memory cleared after key derivation to best effort (C library if available).
+Reed-Solomon error correction optional (32 bytes per chunk).
+AES-NI detection to recommend the fastest AEAD for your CPU.
 
 PERFORMANCE:
-Multi-threaded GUI (crypto runs in background)
-Progress tracking for large files and archives
-Batch processing support
-Memory efficient chunked processing
-Intelligent compression skipping for pre-compressed files
+Multi-threaded GUI (crypto runs in background).
+Progress tracking for large files and archives.
+Batch processing support.
+Memory efficient chunked processing.
+"Smart" compression skipping for pre-compressed files.
 
 BUILD INFO:
 Language: Python 3.12 and C
@@ -62,14 +64,14 @@ GUI framework: PySide6 (QtFramework)
 Crypto library: cryptography (Rust / C based)
 Compression: zlib, zstandard, lzma
 Compiler: Nuitka (when distributed)
-Platform: Windows based, MIGHT work on Linux/Mac
-Build version: 1-7-1-0-2-0-2-5
-Version: 1.3
+Platform: Windows based, Linux / macOS untested
+Build version: 0-3-1-1-2-0-2-5
+Version: 1.4
 
 KNOWN LIMITATIONS:
-No file shredding after encryption
+No file shredding after encryption.
 Progress is more accurate I guess...
-No key file support (password only)
-No CLI mode :(
+No key file support (password only).
+Semi CLI mode, untested and undocumented.
 
 ## end

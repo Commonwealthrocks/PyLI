@@ -2,6 +2,8 @@
 ## scroll down for latest version
 CHANGELOGS
 
+PYLI
+
 VERSION 0.1a - 20.08.2025 <d/m/y>
 [PRIVATE BUILD]
 - Wrote core logic for the app
@@ -119,13 +121,25 @@ VERSION 1.2 - 14.10.2025 <d/m/y>
 - Refactored sm.py to be more centralized
 - Removed the old sm.py file
 
-VERSION 1.3 - 17.10.2025 <d/m/y> [LATEST]
+VERSION 1.3 - 17.10.2025 <d/m/y>
 [PUBLIC BUILD]
 - Improved tooltips in advanced tab of settings
 - Fixed GUI issue for Windows 11
 - Fixed SHA-256 or SHA-512 settings not saving sometimes
 - Added AD (Associated Data) for full file header
 - Added more files to compressions skip list
+
+PYKRYPTOR
+
+VERSION 1.4 - 02.11.2025 <d/m/y> [LATEST]
+- Added archive creation tab
+- Added new icon (for AC)
+- Added new icons for archive creation
+- Added new magic number (PYKX\00x)
+- Added CLI (kinda?); not finished
+- Fixed keep name not being kept
+- Changed default setting (Argon2ID)
+- Changed name from PyLI to PyKryptor
 
 That's all for now :)
 
