@@ -1,6 +1,6 @@
 ## core.py
-## last updated: 17/10/2025 <d/m/y>
-## p-y-l-i
+## last updated: 03/11/2025 <d/m/y>
+## p-y-k-x
 import os
 import io
 import struct
@@ -41,7 +41,8 @@ HASH_ID_SHA256 = 1
 HASH_ID_SHA512 = 2
 SALT_SIZE = 16
 NONCE_SIZE = 12
-MAGIC_NUMBER = b"PYLI\x00"
+MAGIC_NUMBER = b"PYKX\x00"
+MAGIC_NUMBER_LEGACY = b"PYLI\x00"
 MAX_EXT_LEN = 256
 TAG_SIZE = 16
 ECC_BYTES = 32
@@ -191,8 +192,9 @@ class CryptoWorker:
 
     def _encrypt_single_file(self):
         with open(self.in_path, "rb") as f:
-            if f.read(len(MAGIC_NUMBER)) == MAGIC_NUMBER:
-                raise ValueError("This file appears to be already encrypted with PyLI. Aborting to prevent corruption.")
+            magic_check = f.read(len(MAGIC_NUMBER))
+            if magic_check == MAGIC_NUMBER or magic_check == MAGIC_NUMBER_LEGACY:
+                raise ValueError("This file appears to be already encrypted with PyKryptor. Aborting to prevent corruption.")
         effective_compression_level = self.compression_level
         if should_skip_compression(self.in_path):
             effective_compression_level = "none"
@@ -381,13 +383,8 @@ class CryptoWorker:
             base64_name = base64_bytes.decode("utf-8").rstrip("=")[:96]
             out_filename = f"{base64_name}.{self.custom_ext}"
             self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
-        else:
-            base_name = os.path.splitext(os.path.basename(self._file_list[0]))[0]
-            out_filename = f"{base_name}_archive.{self.custom_ext}"
-            self.out_path = os.path.join(os.path.dirname(self.out_path), out_filename)
         if os.path.exists(self.out_path):
             raise IOError(f"Output file '{os.path.basename(self.out_path)}' already exists.")
-        
         final_compression_id_to_write = COMPRESSION_MODES.get(effective_compression_level, {"id": COMPRESSION_NONE})["id"]
         header_buffer = io.BytesIO()
         header_buffer.write(MAGIC_NUMBER)
@@ -520,8 +517,9 @@ class CryptoWorker:
 
     def decrypt_file(self):
         with open(self.in_path, "rb") as infile:
-            if infile.read(len(MAGIC_NUMBER)) != MAGIC_NUMBER:
-                raise ValueError("Not a valid PyLI encrypted file.")
+            magic = infile.read(len(MAGIC_NUMBER))
+            if magic != MAGIC_NUMBER and magic != MAGIC_NUMBER_LEGACY:
+                raise ValueError("Not a valid PyKryptor encrypted file.")
             infile.seek(len(MAGIC_NUMBER))
             version = struct.unpack("!B", infile.read(1))[0]
             if version < 9:
@@ -578,7 +576,6 @@ class CryptoWorker:
                     parity_data = infile.read(ecc_bytes)
                 if not encrypted_chunk: break
                 chunk_data.append((chunk_nonce, encrypted_chunk, parity_data))
-        
             if len(chunk_data) > 4 and compression_id != COMPRESSION_NONE:
                 def decrypt_chunk_worker(chunk_info):
                     chunk_nonce, encrypted_chunk, parity_data = chunk_info
@@ -655,8 +652,9 @@ class CryptoWorker:
     def _decrypt_legacy_file(self, version):
         with open(self.in_path, "rb") as infile:
             infile.seek(0)
-            if infile.read(len(MAGIC_NUMBER)) != MAGIC_NUMBER:
-                raise ValueError("Not a valid PyLI encrypted file.")
+            magic = infile.read(len(MAGIC_NUMBER_LEGACY))
+            if magic != MAGIC_NUMBER and magic != MAGIC_NUMBER_LEGACY:
+                raise ValueError("Not a valid PyKryptor encrypted file.")
             read_version = struct.unpack("!B", infile.read(1))[0]
             if read_version != version:
                  raise ValueError("Internal logic error: version mismatch.")
@@ -800,7 +798,7 @@ class BatchProcessorThread(QThread):
     progress_updated = pyqtSignal(float)
     finished = pyqtSignal(list)
     
-    def __init__(self, operation, file_paths, password, custom_ext=None, output_dir=None, new_name_type=None, chunk_size=CHUNK_SIZE, kdf_iterations=1000000, secure_clear=False, add_recovery_data=False, compression_level="none", archive_mode=False, use_argon2=False, argon2_time_cost=ARGON2_TIME_COST, argon2_memory_cost=ARGON2_MEMORY_COST, argon2_parallelism=ARGON2_PARALLELISM, aead_algorithm="aes-gcm", pbkdf2_hash="sha256", parent=None):
+    def __init__(self, operation, file_paths, password, custom_ext=None, output_dir=None, new_name_type=None, chunk_size=CHUNK_SIZE, kdf_iterations=1000000, secure_clear=False, add_recovery_data=False, compression_level="none", archive_mode=False, use_argon2=False, argon2_time_cost=ARGON2_TIME_COST, argon2_memory_cost=ARGON2_MEMORY_COST, argon2_parallelism=ARGON2_PARALLELISM, aead_algorithm="aes-gcm", pbkdf2_hash="sha256", archive_name=None, parent=None):
         super().__init__(parent)
         self.operation = operation
         self.file_paths = file_paths
@@ -820,6 +818,7 @@ class BatchProcessorThread(QThread):
         self.argon2_parallelism = argon2_parallelism
         self.aead_algorithm = aead_algorithm
         self.pbkdf2_hash = pbkdf2_hash
+        self.archive_name = archive_name
         self.is_canceled = False
         self.errors = []
         self.worker = None
@@ -829,9 +828,12 @@ class BatchProcessorThread(QThread):
             self.batch_progress_updated.emit(1, 1)
             self.status_message.emit("Creating archive...")
             try:
-                out_path = self.file_paths[0]
-                if self.output_dir:
-                    out_path = os.path.join(self.output_dir, os.path.basename(self.file_paths[0]))
+                if self.archive_name and self.output_dir:
+                    out_path = os.path.join(self.output_dir, self.archive_name)
+                else:
+                    fallback_dir = self.output_dir or os.path.dirname(self.file_paths[0])
+                    fallback_name = f"{os.path.splitext(os.path.basename(self.file_paths[0]))[0]}_archive.{self.custom_ext}"
+                    out_path = os.path.join(fallback_dir, fallback_name)
                 self.worker = CryptoWorker(
                     operation=self.operation, in_path=self.file_paths[0], out_path=out_path, password=self.password,
                     custom_ext=self.custom_ext, new_name_type=self.new_name_type, output_dir=self.output_dir,

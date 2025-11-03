@@ -1,6 +1,6 @@
 ## sfx.py
 ## last updated: 11/10/2025 <d/m/y>
-## p-y-l-i
+## p-y-k-x
 import sys
 import os
 import warnings
@@ -44,14 +44,14 @@ class SoundManager:
         except pygame.error as e:
             print(Fore.RED + f"[DEV PRINT] Failed to load sound '{sound_name}'.\n\ne: {e}" + Style.RESET_ALL)
             return False
-            
+
     def play_sound(self, sound_name):
         if not self.mixer_initialized:
             return
         if sound_name not in self.sounds:
             if not self.load_sound(sound_name):
                 print(Fore.RED + f"[DEV PRINT] Failed to load and play sound: {sound_name}." + Style.RESET_ALL)
-                return        
+                return
         try:
             self.sounds[sound_name].play()
         except pygame.error as e:
@@ -60,11 +60,11 @@ class SoundManager:
     def list_available_sounds(self):
         if not self.sound_dir or not os.path.exists(self.sound_dir):
             print(Fore.RED + "[DEV PRINT] Sound directory not found." + Style.RESET_ALL)
-            return []            
+            return []
         sound_files = []
         for file in os.listdir(self.sound_dir):
             if file.lower().endswith((".wav", ".ogg", ".mp3")):
-                sound_files.append(file)               
+                sound_files.append(file)
         return sound_files
 
     def unload(self):
@@ -74,7 +74,7 @@ class SoundManager:
                     sound.stop()
                 except:
                     pass
-            self.sounds.clear()          
+            self.sounds.clear()
         if self.mixer_initialized:
             try:
                 pygame.mixer.quit()

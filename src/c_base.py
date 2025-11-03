@@ -1,6 +1,6 @@
 ## c_base.py
 ## last updated: 14/10/2025 <d/m/y>
-## p-y-l-i 
+## p-y-k-x
 import ctypes 
 import os
 import sys
@@ -94,7 +94,7 @@ def isca():
 def check_aes_ni():
     if aes_ni_aval():
         try:
-            return _aes_ni_lib.has_aes_ni() == 1
+            return _aes_ni_lib.has_aes_ni() == 1 
         except Exception:
             return False
     return False

@@ -1,6 +1,6 @@
 ## stylez.py
-## last updated: 08/10/2025 <d/m/y>
-## p-y-l-i
+## last updated: 19/10/2025 <d/m/y>
+## p-y-k-x
 STYLE_SHEET = """
 QWidget {
     font-family: 'MS Shell Dlg 2', 'Tahoma', 'Arial';
@@ -13,6 +13,29 @@ QFrame#mainFrame {
     background-color: #202020;
     border-radius: 0px;
     padding: 5px;
+}
+QScrollBar:vertical {
+    border: none;
+    background: #202020;
+    width: 10px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::handle:vertical {
+    background: #3E4E52;
+    min-height: 20px;
+    border-radius: 0px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #4A5E62;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+    height: 0px;
+    width: 0px;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: #000000;
 }
 QLineEdit, QComboBox, QSpinBox {
     background-color: #202020;

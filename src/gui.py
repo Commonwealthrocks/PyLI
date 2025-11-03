@@ -1,14 +1,17 @@
 ## gui.py
-## last updated: 14/10/2025 <d/m/y>
-## p-y-l-i
+## last updated: 03/11/2025 <d/m/y>
+## p-y-k-x
 ## libs: pip install pyside6 cryptography pygame reedsolo zstandard pyzstd argon2-cffi
-## compile (gcc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/win32/secure_mem.dll=c/win32/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/win32/chc_aes_ni.dll=c/win32/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
-## compile (msvc): nuitka --standalone --windows-icon-from-ico=pyli_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/win32/secure_mem.dll=c/win32/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/win32/chc_aes_ni.dll=c/win32/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
+## compile (gcc): nuitka --standalone --jobs=4 --windows-icon-from-ico=pykryptor_icon.ico --mingw64 --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/win32/secure_mem.dll=c/win32/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/win32/chc_aes_ni.dll=c/win32/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
+## compile (msvc): nuitka --standalone --jobs=4 --windows-icon-from-ico=pykryptor_icon.ico --windows-console-mode=disable --onefile --enable-plugin=pyside6 --include-data-dir=txts=txts --include-data-dir=sfx=sfx --include-data-dir=img=img --include-data-files=c/win32/secure_mem.dll=c/win32/secure_mem.dll --include-data-files=c/penguin/secure_mem.so=c/penguin/secure_mem.so --include-data-files=c/win32/chc_aes_ni.dll=c/win32/chc_aes_ni.dll --include-data-files=c/penguin/chc_aes_ni.so=c/penguin/chc_aes_ni.so gui.py
 import os
 import sys
 import ctypes
+import shutil
+import glob
 import json
 from colorama import *
+init(autoreset=True)
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
@@ -27,9 +30,25 @@ except ImportError:
 
 from core import BatchProcessorThread
 from stylez import STYLE_SHEET
-from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole, CustomArgon2Dialog, enable_win_dark_mode
+from outs import ProgressDialog, CustomDialog, ErrorExportDialog, DebugConsole, CustomArgon2Dialog, ArchiveCreationDialog, enable_win_dark_mode
 from sfx import SoundManager
 from c_base import isca, check_aes_ni, aes_ni_aval
+
+def rm_pycache():
+    cache_dirs = glob.glob(os.path.join("**", "__pycache__"), recursive=True)
+    direct_cache = get_resource_path(os.path.join("__pycache__"))
+    if os.path.isdir(direct_cache):
+        cache_dirs.append(direct_cache)
+    if not cache_dirs:
+        return
+    for cache_path in set(cache_dirs):
+        try:
+            if os.path.exists(cache_path) and os.path.isdir(cache_path):
+                shutil.rmtree(cache_path)
+        except PermissionError:
+            print(Fore.RED + f"[DEV PRINT] Cannot remove __pycache__ directory from '{cache_path}'.\n\ne: {e}" + Style.RESET_ALL)
+        except OSError as e:
+            print(Fore.RED + f"[DEV PRINT] Failed to remove __pycache__ from '{cache_path}'.\n\ne: {e}" + Style.RESET_ALL)
 
 def get_resource_path(relative_path):
     if getattr(sys, "frozen", False):
@@ -72,12 +91,12 @@ class QtStream(QObject):
             self.text_written.emit(buffered_text)
             self._buffer = []
 
-class PyLI(QWidget):
+class PyKryptor(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PyLI")
+        self.setWindowTitle("PyKryptor")
         self.setGeometry(100, 100, 500, 380)
-        self.setFixedSize(500, 380)
+        self.setFixedSize(500, 400)
         self.setStyleSheet(STYLE_SHEET)
         self.setAcceptDrops(True)
         enable_win_dark_mode(self)
@@ -94,7 +113,7 @@ class PyLI(QWidget):
         self.compression_level = "none"
         self.archive_mode = False
         self.aead_algorithm = "aes-gcm"
-        self.use_argon2 = False
+        self.use_argon2 = True
         self.argon2_time_cost = 3
         self.argon2_memory_cost = 65536
         self.argon2_parallelism = 4
@@ -120,14 +139,14 @@ class PyLI(QWidget):
         main_layout.addWidget(self.tab_widget)
         self.setLayout(main_layout)
         if self.is_admin:
-            dialog = CustomDialog("Warning", "You are running PyLI with Administrator privileges, due to this some feature's like drag n' drop for Windows will be disabled.\n\nWhy? Yeah I got no fucking clue too.", self)
+            dialog = CustomDialog("Warning", "You are running PyKryptor with Administrator privileges, due to this some feature's like drag n' drop for Windows will be disabled.\n\nWhy? Yeah I got no fucking clue too.", self)
             dialog.exec()
 
     def init_debug_console(self):
         if self.is_admin:
-            VER = "1.3"
+            VER = "1.4"
             self.debug_console = DebugConsole(parent=self)
-            print("--- PyLI debug console initialized (Administrator) ---")
+            print("--- PyKryptor debug console initialized (Administrator) ---")
             print(f"--- Version: {VER} ---")
             print(f"--- Argon2ID available: {ARGON2_AVAILABLE} ---")
             print(f"--- Secure memory C lib loaded: {isca} ---")
@@ -147,9 +166,9 @@ class PyLI(QWidget):
 
     def get_config_path(self):
         if sys.platform == "win32":
-            return os.path.join(os.environ["APPDATA"], "PyLI", "config.json")
+            return os.path.join(os.environ["APPDATA"], "PyKryptor", "config.json")
         else:
-            return os.path.join(os.path.expanduser("~"), ".pyli", "config.json")
+            return os.path.join(os.path.expanduser("~"), ".pykryptor", "config.json")
 
     def validate_output_dir(self):
         if self.output_dir and not os.path.exists(self.output_dir):
@@ -208,8 +227,7 @@ class PyLI(QWidget):
             "use_argon2": self.use_argon2,
             "argon2_time_cost": self.argon2_time_cost,
             "argon2_memory_cost": self.argon2_memory_cost,
-            "argon2_parallelism": self.argon2_parallelism
-        }
+            "argon2_parallelism": self.argon2_parallelism}
         with open(self.config_path, "w") as f:
             json.dump(config, f, indent=4)
 
@@ -221,13 +239,21 @@ class PyLI(QWidget):
         self.input_path_field = QLineEdit()
         self.input_path_field.setReadOnly(True)
         self.input_path_field.setPlaceholderText("Drag and drop file(s) or folder here...")
+        button_row = QHBoxLayout()
         self.browse_button = QPushButton("Browse")
         icon_path = get_resource_path(os.path.join("img", "browse_img.png"))
         self.browse_button.setIcon(QIcon(icon_path))
-        self.browse_button.setIconSize(QSize (20, 20))
+        self.browse_button.setIconSize(QSize(20, 20))
         self.browse_button.clicked.connect(self.select_files)
+        self.create_archive_button = QPushButton("Create archive")
+        icon_path = get_resource_path(os.path.join("img", "create_archive_img.png"))
+        self.create_archive_button.setIcon(QIcon(icon_path))
+        self.create_archive_button.setIconSize(QSize(20, 20))
+        self.create_archive_button.clicked.connect(self.open_archive_creation_dialog)
+        button_row.addWidget(self.browse_button)
+        button_row.addWidget(self.create_archive_button)
         input_layout.addWidget(self.input_path_field)
-        input_layout.addWidget(self.browse_button)
+        input_layout.addLayout(button_row)
         input_group.setLayout(input_layout)
         password_group = QGroupBox("Encryption / decryption password")
         password_layout = QVBoxLayout()
@@ -312,6 +338,84 @@ class PyLI(QWidget):
         main_layout.addStretch()
         return main_tab
 
+    def open_archive_creation_dialog(self):
+        current_settings = {
+            "archive_name": f"archive.{self.custom_ext}",
+            "output_dir": self.output_dir or os.path.join(os.path.expanduser("~"), "Desktop"),
+            "aead_algorithm": self.aead_algorithm,
+            "use_argon2": self.use_argon2,
+            "pbkdf2_hash": self.pbkdf2_hash,
+            "kdf_iterations": self.kdf_iterations,
+            "argon2_time_cost": self.argon2_time_cost,
+            "argon2_memory_cost": self.argon2_memory_cost,
+            "argon2_parallelism": self.argon2_parallelism,
+            "compression_level": self.compression_level,
+            "secure_clear": self.secure_clear,
+            "add_recovery_data": self.add_recovery_data,
+            "chunk_size_mb": self.chunk_size_mb}
+        dialog = ArchiveCreationDialog(parent=self, current_settings=current_settings)
+        if dialog.exec() == QDialog.Accepted:
+            archive_data = dialog.archive_data
+            if archive_data:
+                self.start_archive_creation(archive_data)
+
+    def start_archive_creation(self, archive_data): ## ¯\_(ツ)_/¯
+        self.status_label.setText("[INFO] Creating archive...")
+        self.encrypt_button.setEnabled(False)
+        self.decrypt_button.setEnabled(False)
+        self.create_archive_button.setEnabled(False)
+        self.progress_dialog = ProgressDialog("Creating archive...", self)
+        self.progress_dialog.canceled.connect(self.cancel_operation)
+        self.progress_dialog.show()
+        output_path = os.path.join(archive_data["output_dir"], archive_data["archive_name"])
+        self.batch_processor = BatchProcessorThread(
+            operation="encrypt",
+            file_paths=archive_data["files"],
+            password=archive_data["password"],
+            custom_ext=os.path.splitext(archive_data["archive_name"])[1].lstrip(".") or self.custom_ext,
+            output_dir=archive_data["output_dir"],
+            new_name_type="keep",
+            chunk_size=archive_data["chunk_size_mb"] * 1024 * 1024,
+            kdf_iterations=archive_data["kdf_iterations"],
+            secure_clear=archive_data["secure_clear"],
+            add_recovery_data=archive_data["add_recovery_data"],
+            compression_level=archive_data["compression_level"],
+            archive_mode=True,
+            use_argon2=archive_data["use_argon2"],
+            argon2_time_cost=archive_data["argon2_time_cost"],
+            argon2_memory_cost=archive_data["argon2_memory_cost"],
+            argon2_parallelism=archive_data["argon2_parallelism"],
+            aead_algorithm=archive_data["aead_algorithm"],
+            pbkdf2_hash=archive_data["pbkdf2_hash"],
+            archive_name=archive_data["archive_name"],
+            parent=self)
+        
+        self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
+        self.batch_processor.status_message.connect(lambda msg: self.progress_dialog.file_label.setText(msg))
+        self.batch_processor.progress_updated.connect(lambda p: self.progress_dialog.file_progress_bar.setValue(int(p)))
+        self.batch_processor.finished.connect(self.on_archive_creation_finished)
+        self.batch_processor.start()
+
+    def on_archive_creation_finished(self, errors):
+        if self.progress_dialog:
+            self.progress_dialog.close()
+        self.encrypt_button.setEnabled(True)
+        self.decrypt_button.setEnabled(True)
+        self.create_archive_button.setEnabled(True)
+        if errors:
+            if not self.mute_sfx:
+                self.sound_manager.play_sound("error.wav")
+            error_message = "Archive creation failed:\n" + "\n".join(errors)
+            self.status_label.setText("[ERROR] Archive creation failed.")
+            dialog = ErrorExportDialog("Archive creation failed", error_message, errors, self)
+            dialog.exec()
+        else:
+            if not self.mute_sfx:
+                self.sound_manager.play_sound("success.wav")
+            self.status_label.setText("[INFO] Archive created successfully.")
+            dialog = CustomDialog("Success", "Archive created successfully; no errors caught.", self)
+            dialog.exec()
+
     def create_settings_general_tab(self):
         general_tab = QWidget()
         layout = QVBoxLayout(general_tab)
@@ -348,7 +452,7 @@ class PyLI(QWidget):
         self.mute_sfx_checkbox = QCheckBox()
         self.mute_sfx_checkbox.setChecked(self.mute_sfx)
         audio_layout.addRow("Mute sfx:", self.mute_sfx_checkbox)
-        self.mute_sfx_checkbox.setToolTip("Mute sfx\n\nMute all sound effects in PyLI.")
+        self.mute_sfx_checkbox.setToolTip("Mute sfx\n\nMute all sound effects in PyKryptor.")
         audio_group.setLayout(audio_layout)
         layout.addWidget(audio_group)
         layout.addStretch()
@@ -370,16 +474,6 @@ class PyLI(QWidget):
         elif state:
             self.play_warning_sound()
             dialog = CustomDialog("Argon2ID info", "Argon2ID is the modern standard for password hashing and offers better security than PBKDF2.\n\nIt may be slightly slower but provides better protection against GPU attacks.", self)
-            dialog.exec()
-
-    def check_ultrakill_warning(self, text):
-        if "ULTRAKILL" in text:
-            self.play_warning_sound()
-            if text == "[L] ULTRAKILL (???)":
-                message = "You have selected the legacy LZMA 'ULTRAKILL' compression.\n\nThis will take an extremely long time and might make CPU's cry, no promises!!"
-            else:
-                message = "You have selected 'ULTRAKILL' compression level.\n\nThis will be quite slow and CPU intensive."
-            dialog = CustomDialog("Warning (like fr this time)", message, self)
             dialog.exec()
 
     def create_settings_advanced_tab(self):
@@ -513,7 +607,7 @@ class PyLI(QWidget):
     def show_argon2_presets(self):
         dialog = CustomArgon2Dialog(self)
         if dialog.exec() == QDialog.Accepted:
-            self.argon2_memory_spinbox.setValue(dialog.selected_value)
+            self.argon2_memory_spinbox.setValue(dialog.selected_value) ## stop crashing vscode pls :(
 
     def create_settings_tab(self):
         settings_tab = QWidget()
@@ -547,10 +641,10 @@ class PyLI(QWidget):
     def create_disclaimer_tab(self):
         disclaimer_widget = QWidget()
         disclaimer_layout = QVBoxLayout(disclaimer_widget)
-        info_label = QLabel("PyLI")
+        info_label = QLabel("PyKryptor")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setStyleSheet("font-size: 16pt; font-weight: bold; margin-bottom: 10px;")
-        subtitle_label = QLabel("WinRAR Is Probably Enough But Use This For Your Needs™")
+        subtitle_label = QLabel("WinRAR is probably enough but use this for your needs™")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_label.setStyleSheet("font-size: 12pt; font-style: italic; margin-bottom: 20px;")
         disclaimer_text = self.load_disclaimer()
@@ -611,22 +705,30 @@ class PyLI(QWidget):
                 disclaimer_path = os.path.join(sys._MEIPASS, "txts", "disclaimer.txt")
             else:
                 disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "disclaimer.txt")
-            with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
-        except Exception: return "Disclaimer file not found."
+            with open(disclaimer_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            return "Disclaimer file not found."
 
     def load_info(self):
         try:
             if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "info.txt")
-            else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "info.txt")
-            with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
-        except Exception: return "Info file not found."
+            else:
+                disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "info.txt")
+            with open(disclaimer_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            return "Info file not found."
 
     def load_log(self):
         try:
             if getattr(sys, "frozen", False): disclaimer_path = os.path.join(sys._MEIPASS, "txts", "changelog.txt")
-            else: disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
-            with open(disclaimer_path, "r", encoding="utf-8") as f: return f.read().strip()
-        except Exception: return "Changelogs file not found."
+            else:
+                disclaimer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "txts", "changelog.txt")
+            with open(disclaimer_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            return "Changelogs file not found."
 
     def update_settings(self):
         compression_mapping = {"None": "none", "Normal (fast)": "normal", "Best (slow-er)": "best", "ULTRAKILL (probably slow)": "ultrakill", "[L] ULTRAKILL (???)": "[L] ultrakill"}
@@ -646,7 +748,6 @@ class PyLI(QWidget):
         self.argon2_time_cost = self.argon2_time_spinbox.value()
         self.argon2_memory_cost = self.argon2_memory_spinbox.value()
         self.argon2_parallelism = self.argon2_parallelism_spinbox.value()
-        
         if self.output_dir and not os.path.exists(self.output_dir):
             desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
             if not os.path.exists(desktop_path): desktop_path = os.path.expanduser("~")
@@ -696,7 +797,8 @@ class PyLI(QWidget):
             return 
         self.status_label.setText("[INFO] Starting...")
         self.encrypt_button.setEnabled(False)
-        self.decrypt_button.setEnabled(False)    
+        self.decrypt_button.setEnabled(False)
+        self.create_archive_button.setEnabled(False)
         self.progress_dialog = ProgressDialog("Processing...", self)
         self.progress_dialog.canceled.connect(self.cancel_operation)
         self.progress_dialog.show()    
@@ -708,7 +810,7 @@ class PyLI(QWidget):
             compression_level=self.compression_level, archive_mode=self.archive_mode,
             use_argon2=self.use_argon2, argon2_time_cost=self.argon2_time_cost,
             argon2_memory_cost=self.argon2_memory_cost, argon2_parallelism=self.argon2_parallelism,
-            aead_algorithm=self.aead_algorithm,
+            aead_algorithm=self.aead_algorithm, pbkdf2_hash=self.pbkdf2_hash,
             parent=self)
         self.batch_processor.batch_progress_updated.connect(self.progress_dialog.update_batch_progress)
         self.batch_processor.status_message.connect(lambda msg: self.progress_dialog.file_label.setText(msg))
@@ -723,7 +825,7 @@ class PyLI(QWidget):
     def update_pbkdf2_hash(self, text):
         self.pbkdf2_hash = text.lower()
         self.save_settings()
-    
+
     def toggle_password_visibility(self, checked):
         if checked:
             self.password_field.setEchoMode(QLineEdit.Normal)
@@ -794,8 +896,8 @@ class PyLI(QWidget):
         if score < 2:
             warning = result.get("feedback", {}).get("warning", "")
             if warning:
-                warning = warning.replace("This is a top-10 common password", "Common password")
-                warning = warning.replace("This is a top-100 common password", "Common password")
+                warning = warning.replace("This is a top 10 common password", "Common password")
+                warning = warning.replace("This is a top 100 common password", "Common password")
                 warning = warning.replace("This is similar to a commonly used password", "Similar to common")
                 warning = warning.replace("Straight rows of keys are easy to guess", "Keyboard pattern")
                 warning = warning.replace("Short keyboard patterns are easy to guess", "Keyboard pattern")
@@ -818,6 +920,7 @@ class PyLI(QWidget):
         if self.progress_dialog: self.progress_dialog.close()
         self.encrypt_button.setEnabled(True)
         self.decrypt_button.setEnabled(True)
+        self.create_archive_button.setEnabled(True)
         self.play_warning_sound()
         self.status_label.setText("[INFO] Operation canceled.")
 
@@ -825,6 +928,7 @@ class PyLI(QWidget):
         if self.progress_dialog: self.progress_dialog.close()
         self.encrypt_button.setEnabled(True)
         self.decrypt_button.setEnabled(True)
+        self.create_archive_button.setEnabled(True)
         if errors:
             if not self.mute_sfx: self.sound_manager.play_sound("error.wav")
             error_message = "Some files failed to process:\n" + "\n".join(errors)
@@ -870,7 +974,7 @@ if __name__ == "__main__":
     if is_admin():
         sys.stdout = stream_redirect
         sys.stderr = stream_redirect
-    window = PyLI()
+    window = PyKryptor()
     if window.debug_console:
         stream_redirect.connect_target(window.debug_console.append_text)   
     window.show()
