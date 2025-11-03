@@ -1,6 +1,6 @@
 // secure_mem/secure_mem.c
 // last updated: 15/09/2025 <d/m/y>
-// p-y-l-i
+// p-y-k-x
 // win32: gcc -shared -o secure_mem.dll secure_mem.c -O2 -Wall -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
 // linux / linux2: gcc -shared -fPIC -o secure_mem.so secure_mem.c -O2 -Wall
 // macos: x86_64-apple-darwinXX-clang -dynamiclib -o secure_mem.dylib secure_mem.c -O2 -Wall

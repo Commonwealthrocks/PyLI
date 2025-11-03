@@ -1,6 +1,6 @@
 // chc_aes_ni.c
 // last updated: 14/10/2025 <d/m/y>
-// p-y-l-i
+// p-y-k-x
 // win32: gcc -shared -o chc_aes_ni.dll chc_aes_ni.c -O2 -Wall
 // linux / linux2: gcc -shared -fPIC -o chc_aes_ni.so chc_aes_ni.c -O2 -Wall
 #if defined(_WIN32)
